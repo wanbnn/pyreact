@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyreact"
-version = "1.0.0"
+name = "pyreact-framework"
+version = "1.0.1"
 description = "Framework web declarativo inspirado no React, construído nativamente para Python"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.8"
 authors = [
-    {name = "PyReact Team", email = "pyreact@example.com"}
+    {name = "wanbnn", email = "wanbnn@users.noreply.github.com"}
 ]
 keywords = [
     "react",
@@ -50,13 +50,14 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pyreact/pyreact"
-Documentation = "https://pyreact.readthedocs.io"
-Repository = "https://github.com/pyreact/pyreact"
-Issues = "https://github.com/pyreact/pyreact/issues"
+Homepage = "https://github.com/wanbnn/pyreact"
+Documentation = "https://pyreact-framework.readthedocs.io"
+Repository = "https://github.com/wanbnn/pyreact"
+Issues = "https://github.com/wanbnn/pyreact/issues"
+Changelog = "https://pyreact-framework.readthedocs.io/en/latest/resources/changelog.html"
 
 [project.scripts]
-pyreact = "pyreact.cli.main:main"
+pyreact-framework = "pyreact.cli.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

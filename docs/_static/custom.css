@@ -1,0 +1,107 @@
+/* PyReact Documentation Custom Styles */
+
+/* Theme colors */
+:root {
+    --pyreact-primary: #007bff;
+    --pyreact-secondary: #6c757d;
+    --pyreact-success: #28a745;
+    --pyreact-danger: #dc3545;
+    --pyreact-warning: #ffc107;
+    --pyreact-info: #17a2b8;
+}
+
+/* Code blocks */
+.highlight {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 1em;
+    overflow-x: auto;
+}
+
+/* Python code */
+.highlight-python {
+    border-left: 4px solid var(--pyreact-primary);
+}
+
+/* Bash code */
+.highlight-bash {
+    border-left: 4px solid var(--pyreact-success);
+}
+
+/* Copy button */
+button.copybtn {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+/* Admonitions */
+.admonition {
+    padding: 1em;
+    margin: 1em 0;
+    border-radius: 4px;
+}
+
+.admonition.note {
+    background-color: #e7f3ff;
+    border-left: 4px solid var(--pyreact-info);
+}
+
+.admonition.warning {
+    background-color: #fff3cd;
+    border-left: 4px solid var(--pyreact-warning);
+}
+
+.admonition.danger {
+    background-color: #f8d7da;
+    border-left: 4px solid var(--pyreact-danger);
+}
+
+/* Tables */
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+}
+
+/* Links */
+a {
+    color: var(--pyreact-primary);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Code inline */
+code {
+    background-color: #f8f9fa;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+/* Sidebar */
+.wy-side-nav-search {
+    background-color: var(--pyreact-primary);
+}
+
+/* Footer */
+footer {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid #eee;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .wy-nav-content {
+        max-width: 100%;
+    }
+}

@@ -6,7 +6,7 @@ This module defines the base Component class for stateful components
 in PyReact, similar to React's React.Component.
 """
 
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Union, TYPE_CHECKING
 from abc import ABC, abstractmethod
 import weakref
 

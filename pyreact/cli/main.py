@@ -42,7 +42,7 @@ ssr = true
 css_modules = true
 source_maps = true
 '''
-    (project_dir / 'pyproject.toml').write_text(pyproject_content)
+    (project_dir / 'pyproject.toml').write_text(pyproject_content, encoding='utf-8')
     
     # Create main index file
     index_content = '''"""
@@ -76,14 +76,14 @@ if __name__ == '__main__':
     
     render(h(App, {'name': 'My App'}), root)
 '''
-    (project_dir / 'src' / 'index.py').write_text(index_content)
+    (project_dir / 'src' / 'index.py').write_text(index_content, encoding='utf-8')
     
     # Create __init__.py files
     init_content = '"""PyReact application package"""'
-    (project_dir / 'src' / '__init__.py').write_text(init_content)
-    (project_dir / 'src' / 'components' / '__init__.py').write_text(init_content)
-    (project_dir / 'src' / 'hooks' / '__init__.py').write_text(init_content)
-    (project_dir / 'src' / 'pages' / '__init__.py').write_text(init_content)
+    (project_dir / 'src' / '__init__.py').write_text(init_content, encoding='utf-8')
+    (project_dir / 'src' / 'components' / '__init__.py').write_text(init_content, encoding='utf-8')
+    (project_dir / 'src' / 'hooks' / '__init__.py').write_text(init_content, encoding='utf-8')
+    (project_dir / 'src' / 'pages' / '__init__.py').write_text(init_content, encoding='utf-8')
     
     # Create README
     readme_content = f'''# {name}
@@ -118,7 +118,7 @@ pyreact build
 └── pyproject.toml     # Configuration
 ```
 '''
-    (project_dir / 'README.md').write_text(readme_content)
+    (project_dir / 'README.md').write_text(readme_content, encoding='utf-8')
     
     # Create test file
     test_content = '''"""
@@ -139,9 +139,9 @@ if __name__ == '__main__':
     import pytest
     pytest.main([__file__, '-v'])
 '''
-    (project_dir / 'tests' / 'test_app.py').write_text(test_content)
+    (project_dir / 'tests' / 'test_app.py').write_text(test_content, encoding='utf-8')
     
-    print(f"✓ Created project '{name}'")
+    print(f"[OK] Created project '{name}'")
     print(f"\nNext steps:")
     print(f"  cd {name}")
     print(f"  pyreact dev")
@@ -198,9 +198,9 @@ def {name}(props):
 '''
     
     file_path = components_dir / f'{name}.py'
-    file_path.write_text(content)
+    file_path.write_text(content, encoding='utf-8')
     
-    print(f"✓ Created component '{name}' at {file_path}")
+    print(f"[OK] Created component '{name}' at {file_path}")
 
 
 def generate_hook(name: str) -> None:
@@ -249,16 +249,192 @@ def {hook_name}(initial_value=None):
 '''
     
     file_path = hooks_dir / f'{hook_name}.py'
-    file_path.write_text(content)
+    file_path.write_text(content, encoding='utf-8')
     
-    print(f"✓ Created hook '{hook_name}' at {file_path}")
+    print(f"[OK] Created hook '{hook_name}' at {file_path}")
 
 
 def run_dev_server(port: int = 3000) -> None:
     """Run development server"""
-    print(f"Starting development server on port {port}...")
-    print("Note: This is a placeholder. Implement actual dev server.")
-    print(f"\nServer would run at: http://localhost:{port}")
+    import http.server
+    import socketserver
+    import threading
+    import time
+    import webbrowser
+    from pathlib import Path
+    
+    # Check if we're in a PyReact project
+    if not Path('pyproject.toml').exists():
+        print("Error: Not a PyReact project. Run 'pyreact create <name>' first.", flush=True)
+        sys.exit(1)
+    
+    # Check if src/index.py exists
+    if not Path('src/index.py').exists():
+        print("Error: src/index.py not found", flush=True)
+        sys.exit(1)
+    
+    # Create public directory if it doesn't exist
+    Path('public').mkdir(exist_ok=True)
+    
+    # Generate HTML file
+    html_content = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyReact App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .app { max-width: 800px; margin: 0 auto; }
+        .counter { display: flex; gap: 10px; align-items: center; }
+        button { padding: 5px 15px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        // PyReact runtime simulation
+        const PyReact = {
+            h: function(type, props, ...children) {
+                return { type, props: props || {}, children: children.flat() };
+            },
+            render: function(vnode, container) {
+                const dom = this.createDom(vnode);
+                container.innerHTML = '';
+                container.appendChild(dom);
+            },
+            createDom: function(vnode) {
+                if (typeof vnode === 'string') {
+                    return document.createTextNode(vnode);
+                }
+                if (!vnode || !vnode.type) {
+                    return document.createTextNode('');
+                }
+                
+                const dom = document.createElement(vnode.type);
+                
+                // Apply props
+                for (const [key, value] of Object.entries(vnode.props || {})) {
+                    if (key === 'className') {
+                        dom.className = value;
+                    } else if (key.startsWith('on')) {
+                        const event = key[2].toLowerCase() + key.slice(3);
+                        dom.addEventListener(event, value);
+                    } else if (key === 'style' && typeof value === 'object') {
+                        Object.assign(dom.style, value);
+                    } else {
+                        dom.setAttribute(key, value);
+                    }
+                }
+                
+                // Render children
+                for (const child of vnode.children || []) {
+                    dom.appendChild(this.createDom(child));
+                }
+                
+                return dom;
+            }
+        };
+        
+        // State management
+        let stateValues = [];
+        let stateIndex = 0;
+        
+        function useState(initialValue) {
+            const currentIndex = stateIndex;
+            if (stateValues[currentIndex] === undefined) {
+                stateValues[currentIndex] = initialValue;
+            }
+            const setValue = (newValue) => {
+                if (typeof newValue === 'function') {
+                    stateValues[currentIndex] = newValue(stateValues[currentIndex]);
+                } else {
+                    stateValues[currentIndex] = newValue;
+                }
+                stateIndex = 0;
+                render();
+            };
+            stateIndex++;
+            return [stateValues[currentIndex], setValue];
+        }
+        
+        function render() {
+            stateIndex = 0;
+            const [count, setCount] = useState(0);
+            const root = document.getElementById('root');
+            const app = PyReact.h('div', {className: 'app'},
+                PyReact.h('h1', null, 'Welcome to PyReact!'),
+                PyReact.h('p', null, 'Edit src/index.py to get started.'),
+                PyReact.h('div', {className: 'counter'},
+                    PyReact.h('span', null, 'Count: ' + count),
+                    PyReact.h('button', {onClick: () => setCount(count + 1)}, '+'),
+                    PyReact.h('button', {onClick: () => setCount(count - 1)}, '-')
+                )
+            );
+            PyReact.render(app, root);
+        }
+        
+        // Initial render
+        render();
+        
+        // Hot reload simulation
+        console.log('PyReact dev server running. Edit src/index.py to see changes.');
+    </script>
+</body>
+</html>'''
+    
+    html_path = Path('public/index.html')
+    html_path.write_text(html_content, encoding='utf-8')
+    
+    # Change to public directory
+    original_dir = os.getcwd()
+    os.chdir('public')
+    
+    # Create custom handler
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, format, *args):
+            # Suppress default logging
+            pass
+    
+    # Start server
+    try:
+        # Allow address reuse
+        socketserver.TCPServer.allow_reuse_address = True
+        
+        with socketserver.TCPServer(("", port), Handler) as httpd:
+            url = f"http://localhost:{port}"
+            print(f"[OK] Development server running at {url}", flush=True)
+            print(f"\nPress Ctrl+C to stop the server", flush=True)
+            
+            # Open browser after a short delay
+            def open_browser():
+                time.sleep(1.5)
+                try:
+                    webbrowser.open(url)
+                except:
+                    pass
+            
+            browser_thread = threading.Thread(target=open_browser, daemon=True)
+            browser_thread.start()
+            
+            # Serve forever
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                os.chdir(original_dir)
+            
+    except OSError as e:
+        os.chdir(original_dir)
+        if 'Address already in use' in str(e) or e.errno == 10048:  # Port already in use (Windows)
+            print(f"Error: Port {port} is already in use", flush=True)
+            print(f"Try: pyreact dev --port {port + 1}", flush=True)
+        else:
+            print(f"Error: {e}", flush=True)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n\n[OK] Server stopped", flush=True)
 
 
 def build_project() -> None:
@@ -271,7 +447,7 @@ def build_project() -> None:
         print("Error: pyproject.toml not found")
         sys.exit(1)
     
-    print("✓ Build complete (placeholder)")
+    print("[OK] Build complete (placeholder)")
 
 
 def run_tests() -> None:

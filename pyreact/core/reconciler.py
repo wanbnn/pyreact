@@ -1,21 +1,19 @@
-"""
-Reconciler Module
-=================
+"""Reconciler Module
 
-This module implements the diff algorithm for comparing VNodes
-and efficiently updating the DOM.
+This module implements the diff algorithm for comparing VNodes and efficiently updating the DOM.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Union, Set
 from .element import VNode
 from .component import Component
+from ..dom import dom_operations
 
 
 class Reconciler:
     """
-    Reconciler for diffing and patching the DOM
+    Reconciler implements the diff algorithm for efficient DOM updates.
     
-    Implements the React-style reconciliation algorithm:
+    The algorithm follows these principles:
     1. Elements of different types → replace completely
     2. Elements of same type → update attributes/props
     3. Children with keys → reorder/move instead of recreate
@@ -40,7 +38,7 @@ class Reconciler:
             new_vnode: New VNode (or None for removal)
             parent_dom: Parent DOM element
             index: Child index in parent
-        
+            
         Returns:
             VNode: The new VNode (may be reused or new)
         """
@@ -74,7 +72,7 @@ class Reconciler:
         
         Args:
             vnode: Virtual node to create
-        
+            
         Returns:
             DOM node
         """
@@ -103,15 +101,17 @@ class Reconciler:
         for child in vnode.children:
             if isinstance(child, str):
                 text_node = self._create_text_node(child)
-                dom.appendChild(text_node)
+                dom.append_child(text_node)
             elif isinstance(child, VNode):
                 child_dom = self.create_dom(child)
-                dom.appendChild(child_dom)
+                dom.append_child(child_dom)
         
         return dom
     
     def _create_component_dom(self, vnode: VNode) -> Any:
         """Create DOM for a component"""
+        from .hooks import _set_current_component, _reset_hook_index
+        
         component_type = vnode.type
         
         # Instantiate component
@@ -123,10 +123,19 @@ class Reconciler:
             component = _FunctionComponent(vnode.type, vnode.props)
         
         component._vnode = vnode
+        component._hooks = []
         vnode._component_instance = component
+        
+        # Set component context for hooks
+        _set_current_component(component)
+        _reset_hook_index()
         
         # Render component
         rendered = component.render()
+        
+        # Reset context
+        _set_current_component(None)
+        
         if rendered is None:
             # Render nothing
             return self._create_comment('empty')
@@ -142,6 +151,8 @@ class Reconciler:
     
     def _update_component(self, old_vnode: VNode, new_vnode: VNode) -> VNode:
         """Update a component"""
+        from .hooks import _set_current_component, _reset_hook_index
+        
         old_component = old_vnode._component_instance
         new_props = new_vnode.props
         
@@ -149,8 +160,7 @@ class Reconciler:
         should_update = True
         if hasattr(old_component, 'should_component_update'):
             should_update = old_component.should_component_update(
-                new_props,
-                old_component.state
+                new_props, old_component.state
             )
         
         # Update props
@@ -159,21 +169,28 @@ class Reconciler:
         new_vnode._dom_node = old_vnode._dom_node
         
         if should_update:
+            # Set component context for hooks
+            _set_current_component(old_component)
+            _reset_hook_index()
+            
             # Re-render
             old_rendered = old_vnode._component_instance._vnode
             new_rendered = old_component.render()
+            
+            # Reset context
+            _set_current_component(None)
             
             if new_rendered is None:
                 # Remove
                 if old_rendered:
                     self._remove_node(
-                        old_vnode._dom_node.parentNode,
+                        old_vnode._dom_node.parent_node,
                         old_rendered,
                         0
                     )
             else:
                 # Diff
-                self.diff(old_rendered, new_rendered, old_vnode._dom_node.parentNode)
+                self.diff(old_rendered, new_rendered, old_vnode._dom_node.parent_node)
                 old_component._vnode = new_rendered
         
         # Call lifecycle
@@ -277,20 +294,20 @@ class Reconciler:
         if vnode.ref:
             vnode.ref.current = None
     
-    # DOM Operations (to be overridden by platform-specific implementations)
+    # DOM Operations - using dom_operations module
     
     def _create_element(self, tag: str) -> Any:
-        """Create a DOM element - override for different platforms"""
-        # This is a placeholder - actual implementation depends on JS bridge
-        return {'nodeType': 'element', 'tagName': tag, 'children': [], 'attributes': {}}
+        """Create a DOM element"""
+        return dom_operations.create_element(tag)
     
     def _create_text_node(self, text: str) -> Any:
-        """Create a text node - override for different platforms"""
-        return {'nodeType': 'text', 'textContent': text}
+        """Create a text node"""
+        return dom_operations.create_text_node(text)
     
     def _create_comment(self, text: str) -> Any:
         """Create a comment node"""
-        return {'nodeType': 'comment', 'textContent': text}
+        # For now, use a text node as fallback
+        return dom_operations.create_text_node(f'<!-- {text} -->')
     
     def _apply_props(self, dom: Any, old_props: Dict, new_props: Dict) -> None:
         """Apply props to DOM element"""
@@ -307,50 +324,48 @@ class Reconciler:
     def _set_prop(self, dom: Any, key: str, value: Any) -> None:
         """Set a single prop on DOM element"""
         if key == 'className':
-            dom['className'] = value
+            dom.set_attribute('class', value)
         elif key == 'style' and isinstance(value, dict):
-            dom['style'] = value
+            for style_key, style_value in value.items():
+                dom.set_style(style_key, style_value)
         elif key.startswith('on'):
             # Event handler
             event_name = key[2:].lower()
-            dom[key] = value
+            dom.add_event_listener(event_name, value)
         elif key == 'dangerouslySetInnerHTML':
-            dom['innerHTML'] = value.get('__html', '')
+            dom.set_inner_html(value.get('__html', ''))
         else:
-            dom[key] = value
+            dom.set_attribute(key, value)
     
     def _remove_prop(self, dom: Any, key: str, value: Any) -> None:
         """Remove a prop from DOM element"""
         if key == 'className':
-            dom['className'] = ''
+            dom.remove_attribute('class')
         elif key == 'style':
-            dom['style'] = {}
+            dom.remove_attribute('style')
         elif key.startswith('on'):
-            del dom[key]
+            event_name = key[2:].lower()
+            dom.remove_event_listener(event_name)
         else:
-            if key in dom:
-                del dom[key]
+            dom.remove_attribute(key)
     
     def _insert_node(self, parent: Any, node: Any, index: int) -> None:
         """Insert node at index"""
-        parent['children'].insert(index, node)
+        parent.insert_child(node, index)
     
     def _remove_node(self, parent: Any, vnode: VNode, index: int) -> None:
         """Remove node at index"""
-        if index < len(parent['children']):
-            parent['children'].pop(index)
+        parent.remove_child_at(index)
         self.unmount(vnode)
     
     def _replace_node(self, parent: Any, new_node: Any, old_vnode: VNode, index: int) -> None:
         """Replace node at index"""
         self.unmount(old_vnode)
-        parent['children'][index] = new_node
+        parent.replace_child_at(new_node, index)
     
     def _move_child(self, parent: Any, old_index: int, new_index: int) -> None:
         """Move child from old_index to new_index"""
-        if old_index < len(parent['children']) and new_index < len(parent['children']):
-            child = parent['children'].pop(old_index)
-            parent['children'].insert(new_index, child)
+        parent.move_child(old_index, new_index)
     
     def _get_type(self, vnode: VNode) -> Any:
         """Get the type of a VNode for comparison"""

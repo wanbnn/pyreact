@@ -6,8 +6,8 @@ This module implements server-side rendering for PyReact components.
 """
 
 from typing import Any, Dict, List, Optional, Union
-from .element import VNode
-from .component import Component
+from ..core.element import VNode
+from ..core.component import Component
 
 
 # Void elements (self-closing)

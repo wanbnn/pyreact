@@ -55,6 +55,65 @@ class Element(DOMNode):
         self._event_listeners: Dict[str, list] = {}
         self._text_content: str = ''
     
+    def set_attribute(self, name: str, value: str) -> None:
+        """Set an attribute"""
+        self.attributes[name] = value
+    
+    def get_attribute(self, name: str) -> Optional[str]:
+        """Get an attribute"""
+        return self.attributes.get(name)
+    
+    def remove_attribute(self, name: str) -> None:
+        """Remove an attribute"""
+        if name in self.attributes:
+            del self.attributes[name]
+    
+    def set_style(self, name: str, value: str) -> None:
+        """Set a style property"""
+        self.style[name] = value
+    
+    def add_event_listener(self, event_type: str, listener: Callable) -> None:
+        """Add an event listener"""
+        if event_type not in self._event_listeners:
+            self._event_listeners[event_type] = []
+        self._event_listeners[event_type].append(listener)
+    
+    def remove_event_listener(self, event_type: str, listener: Callable) -> None:
+        """Remove an event listener"""
+        if event_type in self._event_listeners:
+            if listener in self._event_listeners[event_type]:
+                self._event_listeners[event_type].remove(listener)
+    
+    def set_inner_html(self, html: str) -> None:
+        """Set inner HTML"""
+        self._text_content = html
+        self.child_nodes.clear()
+    
+    def insert_child(self, child: 'DOMNode', index: int) -> None:
+        """Insert a child at a specific index"""
+        child.parent_node = self
+        self.child_nodes.insert(index, child)
+    
+    def remove_child_at(self, index: int) -> None:
+        """Remove a child at a specific index"""
+        if 0 <= index < len(self.child_nodes):
+            child = self.child_nodes.pop(index)
+            child.parent_node = None
+    
+    def replace_child_at(self, new_child: 'DOMNode', index: int) -> None:
+        """Replace a child at a specific index"""
+        if 0 <= index < len(self.child_nodes):
+            old_child = self.child_nodes[index]
+            old_child.parent_node = None
+            new_child.parent_node = self
+            self.child_nodes[index] = new_child
+    
+    def move_child(self, old_index: int, new_index: int) -> None:
+        """Move a child from old_index to new_index"""
+        if 0 <= old_index < len(self.child_nodes) and 0 <= new_index < len(self.child_nodes):
+            child = self.child_nodes.pop(old_index)
+            self.child_nodes.insert(new_index, child)
+    
     @property
     def first_child(self) -> Optional['DOMNode']:
         """Get first child"""
