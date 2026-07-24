@@ -215,10 +215,7 @@ root.render(h(App, None))
 pytest tests/
 
 # Testes E2E
-python tests/e2e/test_simple_e2e.py
-
-# Testes A/B
-python tests/e2e/test_ab_counter.py
+pytest tests/e2e/ -v
 
 # Com cobertura
 pytest tests/ --cov=pyreact
@@ -226,7 +223,7 @@ pytest tests/ --cov=pyreact
 
 ### Documentação de Testes
 
-Ver `Teste_Documentos/README.md` para mais detalhes.
+Ver `docs/GUIA_EXECUCAO_E_TESTES.md` para mais detalhes.
 
 ---
 
@@ -244,7 +241,7 @@ pyreact/
 │   ├── e2e/              # Testes end-to-end
 │   └── unit/             # Testes unitários
 ├── examples/             # Exemplos
-├── Teste_Documentos/     # Documentação de testes
+├── docs/                 # Documentação e relatórios em PDF
 ├── pyproject.toml        # Configuração do projeto
 ├── README.md             # Este arquivo
 ├── INSTALL.md            # Guia de instalação
@@ -272,7 +269,8 @@ venv\Scripts\activate     # Windows
 pip install -e .
 
 # Instalar dependências de desenvolvimento
-pip install pytest pytest-cov playwright
+pip install -e ".[dev]"
+pip install playwright
 playwright install chromium
 ```
 

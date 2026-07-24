@@ -78,10 +78,14 @@ class Element(DOMNode):
             self._event_listeners[event_type] = []
         self._event_listeners[event_type].append(listener)
     
-    def remove_event_listener(self, event_type: str, listener: Callable) -> None:
+    def remove_event_listener(
+        self, event_type: str, listener: Optional[Callable] = None
+    ) -> None:
         """Remove an event listener"""
         if event_type in self._event_listeners:
-            if listener in self._event_listeners[event_type]:
+            if listener is None:
+                self._event_listeners.pop(event_type, None)
+            elif listener in self._event_listeners[event_type]:
                 self._event_listeners[event_type].remove(listener)
     
     def set_inner_html(self, html: str) -> None:
@@ -128,6 +132,24 @@ class Element(DOMNode):
     def inner_html(self, value: str):
         """Set inner HTML"""
         self._text_content = value
+        self.child_nodes.clear()
+
+    @property
+    def children(self) -> list:
+        """Expose child nodes using the browser DOM naming convention."""
+        return self.child_nodes
+
+    @property
+    def text_content(self) -> str:
+        """Return the concatenated text of this element and its descendants."""
+        parts = [self._text_content]
+        for child in self.child_nodes:
+            parts.append(getattr(child, 'text_content', ''))
+        return ''.join(parts)
+
+    @text_content.setter
+    def text_content(self, value: str) -> None:
+        self._text_content = str(value)
         self.child_nodes.clear()
     
     def get_element_by_id(self, id: str) -> Optional['Element']:

@@ -100,7 +100,8 @@ def _render_node(node: Union[VNode, str], include_data_attrs: bool = True) -> st
     # HTML element
     tag = node.type
     attrs = _render_attrs(node.props, include_data_attrs)
-    children = ''.join(_render_node(child, include_data_attrs) for child in node.children)
+    # Hydration needs a marker on the rendered root, not on every descendant.
+    children = ''.join(_render_node(child, False) for child in node.children)
     
     if tag in VOID_ELEMENTS:
         return f'<{tag}{attrs} />'
@@ -147,9 +148,6 @@ def _render_attrs(props: Dict[str, Any], include_data_attrs: bool) -> str:
     Returns:
         str: HTML attribute string
     """
-    if not props:
-        return ''
-    
     result = []
     
     for name, value in props.items():

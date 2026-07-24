@@ -6,8 +6,11 @@ Test renderer for PyReact components.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Union
-from .element import VNode
-from .component import Component
+from ..core.element import VNode
+from ..core.component import Component
+
+
+_mounted_results: List['RenderResult'] = []
 
 
 class RenderResult:
@@ -17,9 +20,10 @@ class RenderResult:
     Provides methods to query the rendered output.
     """
     
-    def __init__(self, container: Any, vnode: VNode):
+    def __init__(self, container: Any, vnode: VNode, root: Any):
         self.container = container
         self.vnode = vnode
+        self.root = root
         self._component = vnode._component_instance if hasattr(vnode, '_component_instance') else None
     
     def query_by_text(self, text: str) -> Optional[Any]:
@@ -68,13 +72,13 @@ class RenderResult:
     
     def rerender(self, vnode: VNode) -> None:
         """Re-render with new props"""
-        # In a real implementation, this would update the existing tree
-        pass
+        self.root.render(vnode)
+        self.vnode = vnode
+        self._component = getattr(vnode, '_component_instance', None)
     
     def unmount(self) -> None:
         """Unmount the component"""
-        if self._component and hasattr(self._component, 'component_will_unmount'):
-            self._component.component_will_unmount()
+        self.root.unmount()
     
     def _find_by_text(self, node: Any, text: str) -> Optional[Any]:
         """Recursively find element by text"""
@@ -84,8 +88,9 @@ class RenderResult:
             return None
         
         # Check children
-        if hasattr(node, 'children'):
-            for child in node.children:
+        children = getattr(node, 'children', getattr(node, 'child_nodes', []))
+        if children:
+            for child in children:
                 result = self._find_by_text(child, text)
                 if result is not None:
                     return result
@@ -106,8 +111,9 @@ class RenderResult:
                 results.append(node)
             return results
         
-        if hasattr(node, 'children'):
-            for child in node.children:
+        children = getattr(node, 'children', getattr(node, 'child_nodes', []))
+        if children:
+            for child in children:
                 results.extend(self._find_all_by_text(child, text))
         
         if hasattr(node, 'text_content'):
@@ -122,8 +128,9 @@ class RenderResult:
             if node.attributes.get(attr) == value:
                 return node
         
-        if hasattr(node, 'children'):
-            for child in node.children:
+        children = getattr(node, 'children', getattr(node, 'child_nodes', []))
+        if children:
+            for child in children:
                 result = self._find_by_attr(child, attr, value)
                 if result is not None:
                     return result
@@ -151,7 +158,9 @@ def render(
         fire_event.click(button)
         assert result.get_by_text('Count: 1')
     """
-    from .dom.dom_operations import document
+    from ..core.renderer import render as render_dom
+    from ..dom.dom_operations import document
+    from .screen import screen
     
     options = options or {}
     
@@ -166,7 +175,11 @@ def render(
     else:
         raise ValueError("Invalid element type")
     
-    return RenderResult(container, vnode)
+    root = render_dom(vnode, container)
+    screen.set_container(container)
+    result = RenderResult(container, vnode, root)
+    _mounted_results.append(result)
+    return result
 
 
 def cleanup() -> None:
@@ -175,8 +188,8 @@ def cleanup() -> None:
     
     Removes all mounted components.
     """
-    # In a real implementation, this would unmount all components
-    pass
+    while _mounted_results:
+        _mounted_results.pop().unmount()
 
 
 def act(callback: Callable) -> None:

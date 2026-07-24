@@ -11,6 +11,55 @@ import sys
 from pathlib import Path
 
 
+def _default_browser_app() -> str:
+    """Return the self-contained browser runtime used by new projects."""
+    return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyReact App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .app { max-width: 800px; margin: 0 auto; }
+        .counter { display: flex; gap: 10px; align-items: center; }
+        button { padding: 5px 15px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        let count = 0;
+        const root = document.getElementById('root');
+
+        function render() {
+            root.innerHTML = `
+                <main class="app">
+                    <h1>Welcome to PyReact!</h1>
+                    <p>Edit src/index.py to get started.</p>
+                    <div class="counter">
+                        <span aria-live="polite">Count: ${count}</span>
+                        <button type="button" data-action="increment"
+                                aria-label="Increment counter">+</button>
+                        <button type="button" data-action="decrement"
+                                aria-label="Decrement counter">-</button>
+                    </div>
+                </main>`;
+        }
+
+        root.addEventListener('click', (event) => {
+            const action = event.target.dataset.action;
+            if (action === 'increment') count += 1;
+            if (action === 'decrement') count -= 1;
+            if (action) render();
+        });
+        render();
+    </script>
+</body>
+</html>
+'''
+
+
 def create_project(name: str) -> None:
     """Create a new PyReact project"""
     project_dir = Path(name)
@@ -84,6 +133,10 @@ if __name__ == '__main__':
     (project_dir / 'src' / 'components' / '__init__.py').write_text(init_content, encoding='utf-8')
     (project_dir / 'src' / 'hooks' / '__init__.py').write_text(init_content, encoding='utf-8')
     (project_dir / 'src' / 'pages' / '__init__.py').write_text(init_content, encoding='utf-8')
+    (project_dir / 'public' / '.gitkeep').write_text('', encoding='utf-8')
+    (project_dir / 'public' / 'index.html').write_text(
+        _default_browser_app(), encoding='utf-8'
+    )
     
     # Create README
     readme_content = f'''# {name}
@@ -94,7 +147,7 @@ A PyReact application.
 
 ```bash
 # Install dependencies
-pip install pyreact
+pip install pyreact-framework
 
 # Run development server
 pyreact dev
@@ -125,14 +178,16 @@ pyreact build
 Tests for the application
 """
 
-from pyreact.testing import render, screen, fireEvent
+from pyreact.testing import cleanup, render
 from pyreact import h
+from src.index import App
 
 
 def test_app_renders():
     """Test that the app renders"""
-    # Add your tests here
-    pass
+    result = render(h(App, {'name': 'Test App'}))
+    assert result.get_by_text('Welcome to Test App!')
+    cleanup()
 
 
 if __name__ == '__main__':
@@ -240,10 +295,11 @@ def {hook_name}(initial_value=None):
     """
     value, set_value = use_state(initial_value)
     
-    @use_effect([])
     def setup():
         # Setup logic here
         return lambda: None  # Cleanup
+
+    use_effect(setup, [])
     
     return value, set_value
 '''
@@ -254,7 +310,7 @@ def {hook_name}(initial_value=None):
     print(f"[OK] Created hook '{hook_name}' at {file_path}")
 
 
-def run_dev_server(port: int = 3000) -> None:
+def run_dev_server(port: int = 3000, open_browser_window: bool = True) -> None:
     """Run development server"""
     import http.server
     import socketserver
@@ -384,7 +440,8 @@ def run_dev_server(port: int = 3000) -> None:
 </html>'''
     
     html_path = Path('public/index.html')
-    html_path.write_text(html_content, encoding='utf-8')
+    if not html_path.exists():
+        html_path.write_text(html_content, encoding='utf-8')
     
     # Change to public directory
     original_dir = os.getcwd()
@@ -414,8 +471,9 @@ def run_dev_server(port: int = 3000) -> None:
                 except:
                     pass
             
-            browser_thread = threading.Thread(target=open_browser, daemon=True)
-            browser_thread.start()
+            if open_browser_window:
+                browser_thread = threading.Thread(target=open_browser, daemon=True)
+                browser_thread.start()
             
             # Serve forever
             try:
@@ -439,15 +497,30 @@ def run_dev_server(port: int = 3000) -> None:
 
 def build_project() -> None:
     """Build project for production"""
-    print("Building project for production...")
-    print("Note: This is a placeholder. Implement actual build process.")
-    
-    # Check for pyproject.toml
-    if not Path('pyproject.toml').exists():
-        print("Error: pyproject.toml not found")
+    import shutil
+
+    project_file = Path('pyproject.toml')
+    entry_file = Path('src/index.py')
+    public_dir = Path('public')
+    output_dir = Path('dist')
+
+    if not project_file.exists() or not entry_file.exists():
+        print("Error: Not a PyReact project (pyproject.toml or src/index.py missing)")
         sys.exit(1)
-    
-    print("[OK] Build complete (placeholder)")
+
+    public_dir.mkdir(exist_ok=True)
+    index_file = public_dir / 'index.html'
+    if not index_file.exists():
+        index_file.write_text(_default_browser_app(), encoding='utf-8')
+
+    output_dir.mkdir(exist_ok=True)
+    for source in public_dir.rglob('*'):
+        if source.is_file() and source.name != '.gitkeep':
+            destination = output_dir / source.relative_to(public_dir)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+
+    print(f"[OK] Production build created at {output_dir.resolve()}")
 
 
 def run_tests() -> None:
@@ -474,6 +547,9 @@ def main():
     # Dev command
     dev_parser = subparsers.add_parser('dev', help='Start development server')
     dev_parser.add_argument('--port', type=int, default=3000, help='Port number')
+    dev_parser.add_argument(
+        '--no-open', action='store_true', help='Do not open a browser window'
+    )
     
     # Build command
     subparsers.add_parser('build', help='Build for production')
@@ -493,7 +569,7 @@ def main():
     if args.command == 'create':
         create_project(args.name)
     elif args.command == 'dev':
-        run_dev_server(args.port)
+        run_dev_server(args.port, open_browser_window=not args.no_open)
     elif args.command == 'build':
         build_project()
     elif args.command == 'test':

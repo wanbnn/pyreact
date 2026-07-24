@@ -264,17 +264,23 @@ class FireEvent:
             event_name: Event handler name (e.g., 'onClick')
             event_data: Event data
         """
-        # Get event handler
+        from ..dom.events import create_synthetic_event
+
+        synthetic_event = create_synthetic_event(event_data.get('type', ''), event_data)
+        dom_event_name = event_name[2:].lower() if event_name.startswith('on') else event_name
+
+        listeners = getattr(element, '_event_listeners', {}).get(dom_event_name, [])
+        if listeners:
+            for handler in list(listeners):
+                handler(synthetic_event)
+            return
+
         handler = None
         if hasattr(element, 'props'):
             handler = element.props.get(event_name)
         elif hasattr(element, event_name):
             handler = getattr(element, event_name)
-        
-        # Call handler
         if handler:
-            from .dom.events import create_synthetic_event
-            synthetic_event = create_synthetic_event(event_data.get('type', ''), event_data)
             handler(synthetic_event)
 
 

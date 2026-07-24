@@ -208,5 +208,5 @@ O Read the Docs irá:
 ---
 
 **Data**: 28/03/2026
-**Versão**: 1.0.1
+**Versão**: 1.0.5
 **Status**: ✅ Documentação completa criada

@@ -1,0 +1,1 @@
+"""PyReact application package"""

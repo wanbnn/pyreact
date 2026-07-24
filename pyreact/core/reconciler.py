@@ -122,8 +122,8 @@ class Reconciler:
             # Function component - wrap in a simple component
             component = _FunctionComponent(vnode.type, vnode.props)
         
-        component._vnode = vnode
         component._hooks = []
+        component._owner_vnode = vnode
         vnode._component_instance = component
         
         # Set component context for hooks
@@ -138,16 +138,76 @@ class Reconciler:
         
         if rendered is None:
             # Render nothing
-            return self._create_comment('empty')
+            dom = self._create_comment('empty')
+            component._vnode = None
+        else:
+            dom = self.create_dom(rendered)
+            component._vnode = rendered
         
-        dom = self.create_dom(rendered)
         component._dom_node = dom
+        component._updater = lambda instance: self._rerender_component(instance)
+        component._is_mounted = True
         vnode._dom_node = dom
         
         # Call lifecycle
         component.component_did_mount()
         
         return dom
+
+    def _rerender_component(self, component: Any) -> None:
+        """Commit state/hook updates for an already mounted component."""
+        old_rendered = component._vnode
+        old_dom = component._dom_node
+        parent = old_dom.parent_node if old_dom is not None else None
+        if parent is None:
+            component._apply_state() if hasattr(component, '_apply_state') else None
+            return
+
+        prev_props = component.props.copy()
+        prev_state = component.state.copy()
+        next_state = getattr(component, '_pending_state', None) or component.state
+        should_update = True
+        if hasattr(component, 'should_component_update') and not isinstance(
+            component, _FunctionComponent
+        ):
+            should_update = component.should_component_update(component.props, next_state)
+
+        if hasattr(component, '_apply_state'):
+            component._apply_state()
+
+        if should_update:
+            from .hooks import _set_current_component, _reset_hook_index
+
+            _set_current_component(component)
+            _reset_hook_index()
+            try:
+                new_rendered = component.render()
+            finally:
+                _set_current_component(None)
+
+            index = parent.child_nodes.index(old_dom)
+            new_dom = old_dom
+            if old_rendered is None and new_rendered is None:
+                pass
+            elif old_rendered is None:
+                new_dom = self.create_dom(new_rendered)
+                parent.replace_child_at(new_dom, index)
+            elif new_rendered is None:
+                new_dom = self._create_comment('empty')
+                parent.replace_child_at(new_dom, index)
+            else:
+                self.diff(old_rendered, new_rendered, parent, index)
+                new_dom = new_rendered._dom_node
+
+            component._vnode = new_rendered
+            component._dom_node = new_dom
+            component._owner_vnode._dom_node = component._dom_node
+
+            if hasattr(component, 'component_did_update'):
+                component.component_did_update(prev_props, prev_state)
+
+        if hasattr(component, '_run_callbacks'):
+            component._run_callbacks()
     
     def _update_component(self, old_vnode: VNode, new_vnode: VNode) -> VNode:
         """Update a component"""
@@ -163,8 +223,9 @@ class Reconciler:
                 new_props, old_component.state
             )
         
-        # Update props
+        # Update props and preserve the mounted instance.
         old_component.props = new_props
+        old_component._owner_vnode = new_vnode
         new_vnode._component_instance = old_component
         new_vnode._dom_node = old_vnode._dom_node
         
@@ -174,7 +235,7 @@ class Reconciler:
             _reset_hook_index()
             
             # Re-render
-            old_rendered = old_vnode._component_instance._vnode
+            old_rendered = old_component._vnode
             new_rendered = old_component.render()
             
             # Reset context
@@ -190,8 +251,12 @@ class Reconciler:
                     )
             else:
                 # Diff
-                self.diff(old_rendered, new_rendered, old_vnode._dom_node.parent_node)
+                parent = old_vnode._dom_node.parent_node
+                index = parent.child_nodes.index(old_vnode._dom_node)
+                self.diff(old_rendered, new_rendered, parent, index)
                 old_component._vnode = new_rendered
+                old_component._dom_node = new_rendered._dom_node
+                new_vnode._dom_node = new_rendered._dom_node
         
         # Call lifecycle
         if hasattr(old_component, 'component_did_update'):
@@ -230,49 +295,42 @@ class Reconciler:
         """
         old_children = old_vnode.children
         new_children = new_vnode.children
-        
-        # Build key map for old children
-        old_keyed: Dict[Union[str, int], tuple] = {}
-        old_index = 0
-        for child in old_children:
-            if isinstance(child, VNode) and child.key is not None:
-                old_keyed[child.key] = (old_index, child)
-            old_index += 1
-        
-        # Track which old children are used
-        used_keys: Set[Union[str, int]] = set()
-        
-        # Process new children
-        new_index = 0
-        for new_child in new_children:
-            child_key = new_child.key if isinstance(new_child, VNode) else None
-            
-            if child_key is not None and child_key in old_keyed:
-                # Reuse existing child
-                old_idx, old_child = old_keyed[child_key]
-                used_keys.add(child_key)
-                
-                # Move if needed
-                if old_idx != new_index:
-                    self._move_child(parent_dom, old_idx, new_index)
-                
-                # Diff
-                self.diff(old_child, new_child, parent_dom, new_index)
+        shared_length = min(len(old_children), len(new_children))
+
+        for index in range(shared_length):
+            old_child = old_children[index]
+            new_child = new_children[index]
+
+            if isinstance(old_child, str) and isinstance(new_child, str):
+                if old_child != new_child:
+                    parent_dom.child_nodes[index].text_content = new_child
+            elif isinstance(old_child, VNode) and isinstance(new_child, VNode):
+                self.diff(old_child, new_child, parent_dom, index)
+            elif isinstance(new_child, str):
+                text_node = self._create_text_node(new_child)
+                parent_dom.replace_child_at(text_node, index)
+                if isinstance(old_child, VNode):
+                    self.unmount(old_child)
             else:
-                # Create new child
-                if isinstance(new_child, str):
-                    text_node = self._create_text_node(new_child)
-                    self._insert_node(parent_dom, text_node, new_index)
-                elif isinstance(new_child, VNode):
-                    child_dom = self.create_dom(new_child)
-                    self._insert_node(parent_dom, child_dom, new_index)
-            
-            new_index += 1
-        
-        # Remove unused old children
-        for key, (idx, child) in old_keyed.items():
-            if key not in used_keys:
-                self._remove_node(parent_dom, child, idx)
+                child_dom = self.create_dom(new_child)
+                parent_dom.replace_child_at(child_dom, index)
+
+        # Append newly added children.
+        for index in range(shared_length, len(new_children)):
+            child = new_children[index]
+            dom = (
+                self._create_text_node(child)
+                if isinstance(child, str)
+                else self.create_dom(child)
+            )
+            self._insert_node(parent_dom, dom, index)
+
+        # Remove stale children from the end so indices stay valid.
+        for index in range(len(old_children) - 1, len(new_children) - 1, -1):
+            old_child = old_children[index]
+            parent_dom.remove_child_at(index)
+            if isinstance(old_child, VNode):
+                self.unmount(old_child)
     
     def unmount(self, vnode: VNode) -> None:
         """
@@ -319,6 +377,8 @@ class Reconciler:
         # Set new props
         for key, value in new_props.items():
             if old_props.get(key) != value:
+                if key.startswith('on') and key in old_props:
+                    self._remove_prop(dom, key, old_props[key])
                 self._set_prop(dom, key, value)
     
     def _set_prop(self, dom: Any, key: str, value: Any) -> None:
@@ -385,9 +445,15 @@ class _FunctionComponent:
         self.state = {}
         self._vnode = None
         self._dom_node = None
+        self._updater = None
+        self._hooks = []
     
     def render(self) -> Optional[VNode]:
         return self.render_fn(self.props)
+
+    def _schedule_update(self) -> None:
+        if self._updater:
+            self._updater(self)
     
     def component_did_mount(self) -> None:
         pass

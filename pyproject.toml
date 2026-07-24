@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyreact-framework"
-version = "1.0.1"
+version = "1.0.5"
 description = "Framework web declarativo inspirado no React, construído nativamente para Python"
 readme = "README.md"
 license = {text = "MIT"}
@@ -48,6 +48,10 @@ dev = [
     "mypy>=1.0.0",
     "flake8>=6.0.0",
 ]
+e2e = [
+    "pytest>=7.0.0",
+    "playwright>=1.40.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/wanbnn/pyreact"
@@ -57,6 +61,7 @@ Issues = "https://github.com/wanbnn/pyreact/issues"
 Changelog = "https://pyreact-framework.readthedocs.io/en/latest/resources/changelog.html"
 
 [project.scripts]
+pyreact = "pyreact.cli.main:main"
 pyreact-framework = "pyreact.cli.main:main"
 
 [tool.setuptools.packages.find]

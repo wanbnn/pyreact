@@ -5,6 +5,37 @@ Changelog
 
 All notable changes to PyReact Framework are documented here.
 
+Version 1.0.5 (2026-07-24)
+---------------------------
+
+Added
+~~~~~
+
+- Portable end-to-end tests for scaffold, CLI, build and browser interactions
+- A complete ``boilerplate`` project demonstrating PyReact in a realistic task board
+- Reproducible PDF documentation and release/test reports
+- Both ``pyreact`` and ``pyreact-framework`` CLI entry points
+- Functional production build output and ``dev --no-open`` for CI
+
+Fixed
+~~~~~
+
+- Component state is committed when no renderer scheduler is attached
+- Hook state is isolated per component and persists across renders
+- Function components re-render after hook state updates
+- Child reconciliation updates text and removes stale nodes correctly
+- Re-rendered event handlers replace previous listeners instead of accumulating
+- SSR hydration markers are emitted on the root node only
+- Testing utilities now mount the real DOM, dispatch events and support cleanup/rerender
+- Generated projects and custom hooks contain executable tests and valid hook syntax
+
+Validation
+~~~~~~~~~~
+
+- 101 framework tests passing
+- 5 boilerplate tests passing, including Chromium E2E
+- Source distribution and wheel validated before publication
+
 Version 1.0.1 (2026-03-28)
 ---------------------------
 

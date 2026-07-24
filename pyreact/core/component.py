@@ -144,6 +144,14 @@ class Component(ABC):
         """Schedule an update with the renderer"""
         if self._updater:
             self._updater(self)
+            return
+
+        # Components can also be used without a mounted renderer (for example
+        # during tests, SSR helpers and standalone state manipulation).  In
+        # that case there is no scheduler that will eventually commit the
+        # queued state, so commit it synchronously.
+        self._apply_state()
+        self._run_callbacks()
     
     def _apply_state(self) -> bool:
         """

@@ -28,12 +28,30 @@ def _set_current_component(component: Any) -> None:
     global _current_component, _hook_index
     _current_component = component
     _hook_index = 0
+    if component is not None:
+        component._hook_index = 0
 
 
 def _reset_hook_index() -> None:
     """Reset hook index for new render"""
     global _hook_index
     _hook_index = 0
+    if _current_component is not None:
+        _current_component._hook_index = 0
+
+
+def _next_hook_index(component: Any) -> int:
+    """Return the next hook slot for a component.
+
+    Keeping the cursor on the component prevents one component's render from
+    corrupting another and also makes the lifecycle explicit for renderers.
+    The module-level value remains synchronized for backwards compatibility.
+    """
+    global _hook_index
+    hook_index = getattr(component, '_hook_index', _hook_index)
+    component._hook_index = hook_index + 1
+    _hook_index = component._hook_index
+    return hook_index
 
 
 def use_state(
@@ -58,9 +76,8 @@ def use_state(
                 h('button', {'onClick': lambda _: set_count(count + 1)}, '+')
             )
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -71,8 +88,6 @@ def use_state(
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     def set_state(new_value: Union[Any, Callable[[Any], Any]]) -> None:
         """Update state value"""
         if callable(new_value):
@@ -120,9 +135,8 @@ def use_reducer(
                 h('button', {'onClick': lambda _: dispatch({'type': 'INCREMENT'})}, '+')
             )
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -134,8 +148,6 @@ def use_reducer(
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     def dispatch(action: Any) -> None:
         """Dispatch an action to the reducer"""
         hook['value'] = hook['reducer'](hook['value'], action)
@@ -171,9 +183,8 @@ def use_effect(
             
             return h('div', None, f"Seconds: {seconds}")
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -184,8 +195,6 @@ def use_effect(
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     # Check if dependencies changed
     deps_changed = (
         hook['deps'] is None or
@@ -203,7 +212,7 @@ def use_effect(
         
         # Run new setup
         hook['cleanup'] = setup()
-        hook['deps'] = dependencies.copy() if dependencies else None
+        hook['deps'] = dependencies.copy() if dependencies is not None else None
 
 
 def use_layout_effect(
@@ -240,9 +249,8 @@ def use_context(context: Any) -> Any:
             theme = use_context(ThemeContext)
             return h('button', {'className': f"btn-{theme}"}, 'Click')
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -253,8 +261,6 @@ def use_context(context: Any) -> Any:
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     # Get current context value
     return hook['context']._get_value() if hasattr(hook['context'], '_get_value') else hook['value']
 
@@ -280,9 +286,8 @@ def use_ref(initial_value: Any = None) -> 'Ref':
             
             return h('input', {'ref': input_ref, 'type': 'text'})
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -294,8 +299,6 @@ def use_ref(initial_value: Any = None) -> 'Ref':
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     return hook['ref']
 
 
@@ -320,9 +323,8 @@ def use_memo(factory: Callable[[], Any], dependencies: List[Any]) -> Any:
             )
             return h('div', None, result)
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -333,8 +335,6 @@ def use_memo(factory: Callable[[], Any], dependencies: List[Any]) -> Any:
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     # Check if dependencies changed
     if _deps_changed(hook['deps'], dependencies):
         hook['value'] = factory()
@@ -428,9 +428,8 @@ def use_id() -> str:
                 h('input', {'id': id, 'type': 'text'})
             )
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -440,8 +439,6 @@ def use_id() -> str:
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     return hook['value']
 
 
@@ -464,9 +461,8 @@ def use_transition() -> Tuple[Callable[[Callable], None], bool]:
                 is_pending and h('span', None, 'Loading...')
             )
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -476,8 +472,6 @@ def use_transition() -> Tuple[Callable[[Callable], None], bool]:
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     def start_transition(callback: Callable) -> None:
         """Start a non-blocking transition"""
         hook['is_pending'] = True
@@ -507,9 +501,8 @@ def use_deferred_value(value: Any) -> Any:
     Returns:
         Deferred value
     """
-    global _hook_index
     component = _get_current_component()
-    hook_index = _hook_index
+    hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
     if hook_index >= len(component._hooks):
@@ -520,8 +513,6 @@ def use_deferred_value(value: Any) -> Any:
         })
     
     hook = component._hooks[hook_index]
-    _hook_index += 1
-    
     # Update deferred value asynchronously
     if hook['value'] != value:
         hook['value'] = value

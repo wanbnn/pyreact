@@ -1,0 +1,18 @@
+[project]
+name = "orbit-pyreact-boilerplate"
+version = "0.1.0"
+description = "Aplicação de gestão de tarefas construída com PyReact"
+requires-python = ">=3.8"
+dependencies = ["pyreact-framework>=1.0.5"]
+
+[tool.pyreact]
+entry = "src/index.py"
+output = "dist"
+dev_port = 3000
+ssr = true
+css_modules = true
+source_maps = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
