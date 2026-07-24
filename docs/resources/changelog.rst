@@ -16,6 +16,7 @@ Added
 - Reproducible PDF documentation and release/test reports
 - Both ``pyreact`` and ``pyreact-framework`` CLI entry points
 - Functional production build output and ``dev --no-open`` for CI
+- Automatic PyPI publishing from ``master`` with OIDC trusted publishing
 
 Fixed
 ~~~~~
@@ -32,7 +33,7 @@ Fixed
 Validation
 ~~~~~~~~~~
 
-- 101 framework tests passing
+- 106 framework tests passing
 - 5 boilerplate tests passing, including Chromium E2E
 - Source distribution and wheel validated before publication
 

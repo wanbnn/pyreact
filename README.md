@@ -291,6 +291,15 @@ python -m build
 
 ## 📦 Publicação
 
+### Publicação automática
+
+Todo push em `master` executa testes, build e publicação no PyPI através do
+GitHub Actions. A autenticação usa Trusted Publishing (OIDC), sem token
+permanente armazenado no repositório.
+
+Consulte [`docs/PUBLICACAO_AUTOMATICA.md`](docs/PUBLICACAO_AUTOMATICA.md) para
+a configuração inicial e a estratégia de versionamento.
+
 ### Build
 
 ```bash

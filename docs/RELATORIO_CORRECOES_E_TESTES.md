@@ -5,8 +5,8 @@ Data da validação: 24/07/2026
 ## Resumo
 
 O projeto foi analisado a partir de uma execução limpa da suíte. A primeira
-execução apresentou 12 falhas e 6 erros. Após as correções, a suíte completa
-terminou com 101 testes aprovados.
+execução apresentou 12 falhas e 6 erros. Após as correções e a inclusão do
+pipeline de release, a suíte completa terminou com 106 testes aprovados.
 
 ## Problemas encontrados e correções
 
@@ -79,7 +79,7 @@ python -m pytest -q
 Resultado:
 
 ```text
-101 passed
+106 passed
 ```
 
 Também foram verificados o carregamento do pacote, a renderização reativa, a
