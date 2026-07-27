@@ -1,57 +1,52 @@
-# Publicação automática no PyPI
+# Automatic publishing to PyPI
 
-O workflow `.github/workflows/publish.yml` executa em todo push para `master`.
+The `.github/workflows/publish.yml` workflow runs on every push to `master`.
 
-## Fluxo
+## Flow
 
-1. Instala o PyReact e as dependências de desenvolvimento.
-2. Instala o Chromium usado pelos testes E2E.
-3. Executa os testes do framework e do boilerplate.
-4. Gera uma versão PEP 440 única a partir da versão-base:
-   `1.0.5.post<ID da execução>`.
-5. Constrói wheel e source distribution.
-6. Valida os artefatos com `twine check`.
-7. Publica no PyPI usando uma credencial OIDC temporária.
+1. Install PyReact and its development dependencies.
+2. Install Chromium for the end-to-end tests.
+3. Run the framework and boilerplate tests.
+4. Generate a unique PEP 440 version from the base version:
+   `1.0.5.post<run ID>`.
+5. Build the wheel and source distribution.
+6. Validate artifacts with `twine check`.
+7. Publish to PyPI with a temporary OIDC credential.
 
-Se qualquer teste ou validação falhar, a publicação não acontece.
+Publishing is skipped if any test or validation fails.
 
-## Configuração única no PyPI
+## One-time PyPI setup
 
-Não adicione tokens permanentes aos secrets do GitHub. No projeto
-`pyreact-framework` do PyPI:
+Do not add permanent PyPI tokens to GitHub secrets. In the
+`pyreact-framework` project on PyPI:
 
-1. Acesse **Manage → Publishing**.
-2. Adicione um **GitHub Trusted Publisher**.
-3. Preencha:
+1. Open **Manage → Publishing**.
+2. Add a **GitHub Trusted Publisher**.
+3. Enter:
 
-| Campo | Valor |
-|---|---|
+| Field | Value |
+| --- | --- |
 | Owner | `wanbnn` |
 | Repository | `pyreact` |
 | Workflow | `publish.yml` |
 | Environment | `pypi` |
 
-Depois de salvar, execute novamente o workflow que eventualmente tenha falhado
-antes dessa configuração.
+After saving, rerun any workflow that failed before this configuration.
 
-## Versionamento
+## Versioning
 
-A versão declarada em `pyproject.toml` é a versão-base da próxima série de
-publicações. Cada execução automática publica uma post-release única, por
-exemplo:
+The version in `pyproject.toml` is the base for the next publishing series.
+Every automatic run creates a unique post-release, for example:
 
 ```text
 1.0.5.post1234501
 1.0.5.post1234601
 ```
 
-Para iniciar uma nova versão estável, altere `pyproject.toml` e
-`pyreact/__init__.py` para a mesma versão, por exemplo `1.0.6`. Os próximos
-pushes publicarão `1.0.6.post...`.
+To start a new stable series, update `pyproject.toml` and
+`pyreact/__init__.py` to the same version, such as `1.0.6`.
 
-## Execução manual
+## Manual run
 
-Também é possível iniciar o workflow em **Actions → Test and publish PyReact →
-Run workflow**. A publicação somente ocorre quando a execução usa a branch
-`master`.
-
+The workflow can also be started from **Actions → Test and publish PyReact →
+Run workflow**. Publishing only occurs when the run targets `master`.

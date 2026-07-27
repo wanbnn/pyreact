@@ -1,366 +1,198 @@
-# 🐍 PyReact - Framework Web Declarativo para Python
+# 🐍 PyReact — Declarative Web Framework for Python
 
 [![PyPI version](https://badge.fury.io/py/pyreact-framework.svg)](https://pypi.org/project/pyreact-framework/)
 [![Python](https://img.shields.io/pypi/pyversions/pyreact-framework.svg)](https://pypi.org/project/pyreact-framework/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docs](https://readthedocs.org/projects/pyreact-framework/badge/?version=latest)](https://pyreact-framework.readthedocs.io/en/latest/)
 
-**PyReact** é um framework web declarativo inspirado no React, mas construído nativamente para Python. Permite criar interfaces de usuário reativas, com componentes, hooks e renderização eficiente.
+**PyReact** is a React-inspired declarative web framework built natively for
+Python. It provides reactive user interfaces, components, hooks, efficient
+rendering, server-side rendering, and a project CLI.
 
----
-
-## 📦 Instalação
-
-### Via pip (Recomendado)
+## Installation
 
 ```bash
 pip install pyreact-framework
 ```
 
-### Via pip (GitHub)
+Install the current GitHub version:
 
 ```bash
 pip install git+https://github.com/wanbnn/pyreact.git
 ```
 
-### Desenvolvimento Local
+Set up a local development checkout:
 
 ```bash
 git clone https://github.com/wanbnn/pyreact.git
 cd pyreact
-pip install -e .
+pip install -e ".[dev]"
 ```
 
----
+## Quick start
 
-## 🚀 Início Rápido
-
-### Criar um Novo Projeto
+Create and run a project:
 
 ```bash
-# Criar projeto
-pyreact-framework create meu-app
-
-# Entrar no diretório
-cd meu-app
-
-# Iniciar servidor de desenvolvimento
-pyreact-framework dev
+pyreact create my-app
+cd my-app
+pyreact dev
 ```
 
-### Exemplo de Contador
+A functional counter:
 
 ```python
-from pyreact import h, render, use_state, Component
+from pyreact import h, render, use_state
+
 
 def Counter(props):
-    """Componente de contador funcional"""
     count, set_count = use_state(0)
-    
-    return h('div', {'className': 'counter'},
-        h('h1', None, f'Contador: {count}'),
-        h('button', {'onClick': lambda: set_count(count + 1)}, '+'),
-        h('button', {'onClick': lambda: set_count(count - 1)}, '-')
+
+    return h(
+        "div",
+        {"className": "counter"},
+        h("h1", None, f"Count: {count}"),
+        h("button", {"onClick": lambda: set_count(count + 1)}, "+"),
+        h("button", {"onClick": lambda: set_count(count - 1)}, "-"),
     )
 
-# Renderizar
-root = document.getElementById('root')
+
+root = document.getElementById("root")
 render(h(Counter, None), root)
 ```
 
----
+## Components
 
-## ✨ Funcionalidades
-
-### Componentes Funcionais
+Functional components are plain Python callables:
 
 ```python
 def Button(props):
-    """Componente de botão reutilizável"""
-    return h('button', {
-        'className': 'btn',
-        'onClick': props.get('onClick')
-    }, props.get('children'))
+    return h(
+        "button",
+        {"className": "btn", "onClick": props.get("onClick")},
+        props.get("children"),
+    )
 ```
 
-### Componentes de Classe
+Class components extend `Component`:
 
 ```python
+from pyreact import Component, h
+
+
 class Counter(Component):
-    """Componente de contador com estado"""
-    
     def __init__(self, props):
         super().__init__(props)
-        self.state = {'count': 0}
-    
+        self.state = {"count": 0}
+
     def render(self):
-        return h('div', None,
-            h('h1', None, f'Count: {self.state["count"]}'),
-            h('button', {
-                'onClick': lambda: self.set_state({'count': self.state['count'] + 1})
-            }, 'Increment')
+        return h(
+            "button",
+            {"onClick": lambda: self.set_state({"count": self.state["count"] + 1})},
+            f"Count: {self.state['count']}",
         )
 ```
 
-### Hooks
+## Hooks
 
 ```python
-from pyreact import use_state, use_effect, use_ref
+from pyreact import h, use_effect, use_ref, use_state
+
 
 def MyComponent(props):
-    # Estado local
     count, set_count = use_state(0)
-    
-    # Efeito colateral
-    use_effect(lambda: print(f'Count: {count}'), [count])
-    
-    # Referência
+    use_effect(lambda: print(f"Count: {count}"), [count])
     input_ref = use_ref(None)
-    
-    return h('div', None, f'Count: {count}')
+    return h("div", None, f"Count: {count}")
 ```
 
----
+## Main API
 
-## 📖 Documentação
+- `h(type, props, *children)` creates a virtual element (`VNode`).
+- `render(element, container)` renders an element into a DOM container.
+- `create_root(container)` creates a modern rendering root.
+- `render_to_string(element)` renders hydratable server-side markup.
+- `render_to_static_markup(element)` renders static HTML.
 
-### 📚 Documentação Completa
+See the complete [API reference](https://pyreact-framework.readthedocs.io/en/latest/).
 
-A documentação completa está disponível no **Read the Docs**:
-
-🔗 **https://pyreact-framework.readthedocs.io/**
-
-#### Conteúdo da Documentação:
-
-- **Getting Started**
-  - Installation
-  - Quick Start
-  - Tutorial (Todo App)
-  
-- **Core Concepts**
-  - Components
-  - Props
-  - State
-  - Events
-  - Lifecycle
-  
-- **Advanced**
-  - Server-Side Rendering (SSR)
-  - Routing
-  - Styling
-  - Testing
-  
-- **API Reference**
-  - Element API
-  - Component API
-  - Hooks API
-  - CLI API
-
-### CLI Commands
+## CLI
 
 ```bash
-# Criar novo projeto
-pyreact create <nome>
-
-# Iniciar servidor de desenvolvimento
-pyreact-framework dev [--port PORT]
-
-# Gerar componente
-pyreact generate component <nome>
-
-# Gerar hook
-pyreact generate hook <nome>
-
-# Build para produção
+pyreact create <name>
+pyreact dev [--port PORT] [--no-open]
+pyreact generate component <name>
+pyreact generate hook <name>
 pyreact build
 ```
 
-### API Principal
-
-#### `h(type, props, *children)`
-
-Cria um elemento virtual (VNode).
-
-```python
-h('div', {'className': 'container'},
-    h('h1', None, 'Título'),
-    h('p', None, 'Parágrafo')
-)
-```
-
-#### `render(element, container)`
-
-Renderiza um elemento no container.
-
-```python
-render(h(App, None), document.getElementById('root'))
-```
-
-#### `create_root(container)`
-
-Cria uma raiz de renderização (API moderna).
-
-```python
-root = create_root(document.getElementById('root'))
-root.render(h(App, None))
-```
-
----
-
-## 🧪 Testes
-
-### Executar Testes
+## Testing
 
 ```bash
-# Testes unitários
-pytest tests/
+# Complete test suite
+python -m pytest -q
 
-# Testes E2E
-pytest tests/e2e/ -v
+# End-to-end tests
+python -m pytest tests/e2e -q
 
-# Com cobertura
-pytest tests/ --cov=pyreact
+# Coverage
+python -m pytest --cov=pyreact --cov-report=term-missing
 ```
 
-### Documentação de Testes
+See the [execution and testing guide](docs/GUIA_EXECUCAO_E_TESTES.md).
 
-Ver `docs/GUIA_EXECUCAO_E_TESTES.md` para mais detalhes.
+## Project layout
 
----
-
-## 📁 Estrutura do Projeto
-
-```
+```text
 pyreact/
-├── pyreact/              # Código fonte
-│   ├── cli/              # Interface de linha de comando
-│   ├── core/             # Núcleo do framework
-│   ├── dom/              # Operações DOM
-│   ├── server/           # Renderização servidor
-│   └── utils/            # Utilitários
-├── tests/                # Testes
-│   ├── e2e/              # Testes end-to-end
-│   └── unit/             # Testes unitários
-├── examples/             # Exemplos
-├── docs/                 # Documentação e relatórios em PDF
-├── pyproject.toml        # Configuração do projeto
-├── README.md             # Este arquivo
-├── INSTALL.md            # Guia de instalação
-├── PUBLISH.md            # Guia de publicação
-└── LICENSE               # Licença MIT
+├── pyreact/              # Framework source
+│   ├── cli/              # Command-line interface
+│   ├── core/             # Components, hooks, and VNodes
+│   ├── dom/              # DOM operations
+│   ├── server/           # Server-side rendering
+│   └── utils/            # Utilities
+├── tests/                # Unit and end-to-end tests
+├── examples/             # Usage examples
+├── boilerplate/          # Complete generated application
+├── docs/                 # Sphinx and Markdown documentation
+├── pyproject.toml
+└── LICENSE
 ```
 
----
-
-## 🛠️ Desenvolvimento
-
-### Configurar Ambiente
+## Development
 
 ```bash
-# Clonar repositório
-git clone https://github.com/wanbnn/pyreact.git
-cd pyreact
-
-# Criar ambiente virtual
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-
-# Instalar dependências
-pip install -e .
-
-# Instalar dependências de desenvolvimento
-pip install -e ".[dev]"
-pip install playwright
-playwright install chromium
-```
-
-### Executar em Desenvolvimento
-
-```bash
-# Instalar em modo editável
-pip install -e .
-
-# Executar testes
-pytest tests/ -v
-
-# Criar build
+python -m venv .venv
+# Linux/macOS: source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+python -m pip install -e ".[dev,e2e]"
+python -m playwright install chromium
+python -m pytest -q
 python -m build
 ```
 
----
+## Publishing
 
-## 📦 Publicação
+Every push to `master` runs tests, builds distributions, and publishes to PyPI
+through GitHub Actions. Authentication uses PyPI Trusted Publishing (OIDC), so
+the repository does not store a permanent upload token. See the
+[automatic publishing guide](docs/PUBLICACAO_AUTOMATICA.md).
 
-### Publicação automática
+## Contributing
 
-Todo push em `master` executa testes, build e publicação no PyPI através do
-GitHub Actions. A autenticação usa Trusted Publishing (OIDC), sem token
-permanente armazenado no repositório.
+Contributions are welcome:
 
-Consulte [`docs/PUBLICACAO_AUTOMATICA.md`](docs/PUBLICACAO_AUTOMATICA.md) para
-a configuração inicial e a estratégia de versionamento.
+1. Fork the repository.
+2. Create a focused branch.
+3. Include tests with your change.
+4. Run the complete test suite.
+5. Open a pull request explaining the problem and solution.
 
-### Build
+## Documentation
 
-```bash
-# Limpar builds anteriores
-python -c "import shutil; from pathlib import Path; [shutil.rmtree(p, ignore_errors=True) for p in ['build', 'dist', 'pyreact.egg-info']]"
+The complete English documentation is published at
+<https://pyreact-framework.readthedocs.io/>.
 
-# Criar build
-python -m build
-```
+## License
 
-### Publicar no PyPI
-
-```bash
-# Instalar twine
-pip install twine
-
-# Verificar build
-twine check dist/*
-
-# Publicar no TestPyPI (teste)
-twine upload --repository testpypi dist/*
-
-# Publicar no PyPI (oficial)
-twine upload dist/*
-```
-
-Ver `PUBLISH.md` para mais detalhes.
-
----
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Por favor:
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
----
-
-## 📝 Licença
-
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
----
-
-## 📞 Contato
-
-- **GitHub Issues:** https://github.com/wanbnn/pyreact/issues
-- **Documentação:** https://pyreact.readthedocs.io/
-- **Email:** contato@pyreact.dev
-
----
-
-## 🙏 Agradecimentos
-
-- Inspirado no [React](https://reactjs.org/)
-- Construído com ❤️ pela comunidade Python
-
----
-
-**Feito com ❤️ pela comunidade Python**
+PyReact is licensed under the MIT License. See [LICENSE](LICENSE).

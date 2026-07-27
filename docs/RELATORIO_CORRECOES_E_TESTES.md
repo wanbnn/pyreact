@@ -1,86 +1,70 @@
-# Relatório de Correções e Testes — PyReact 1.0.5
+# PyReact 1.0.5 correction and test report
 
-Data da validação: 24/07/2026
+Validation date: 2026-07-24
 
-## Resumo
+## Summary
 
-O projeto foi analisado a partir de uma execução limpa da suíte. A primeira
-execução apresentou 12 falhas e 6 erros. Após as correções e a inclusão do
-pipeline de release, a suíte completa terminou com 106 testes aprovados.
+The project was analyzed from a clean test-suite run. The initial run reported
+12 failures and 6 errors. After the fixes and release-pipeline work, all 106
+tests passed.
 
-## Problemas encontrados e correções
+## Problems and fixes
 
-### Estado de componentes
+### Component state
 
-`Component.set_state()` mantinha o novo estado apenas em uma fila quando o
-componente não possuía um renderizador conectado. O estado agora é aplicado
-sincronamente nesse cenário, incluindo a execução dos callbacks pendentes.
+`Component.set_state()` previously kept the new state in a queue when no
+renderer was connected. It now applies state synchronously in that scenario
+and runs pending callbacks.
 
 ### Hooks
 
-O cursor de hooks era global e podia ser compartilhado incorretamente entre
-componentes. O cursor passou a pertencer ao componente atual, sendo reiniciado
-a cada renderização. `use_effect`, `use_ref`, `use_memo` e `use_id` agora
-preservam corretamente seus valores entre renderizações.
+The hook cursor was global and could be shared across components. It now belongs
+to the current component and resets on each render. `use_effect`, `use_ref`,
+`use_memo`, and `use_id` preserve their values correctly between renders.
 
-### Reconciliação e renderização
+### Reconciliation and rendering
 
-Componentes funcionais não recebiam um atualizador, portanto mudanças feitas
-por `use_state` não chegavam ao DOM. O reconciliador agora:
+Functional components did not receive an updater, so `use_state` changes never
+reached the DOM. The reconciler now connects mounted components, reapplies hooks,
+updates child lists and text without duplication, and preserves DOM references.
 
-- conecta componentes montados ao atualizador;
-- reaplica hooks durante a renderização;
-- atualiza, adiciona, substitui e remove filhos;
-- substitui textos sem duplicar o conteúdo anterior;
-- mantém a referência do nó DOM após uma atualização.
+### Server-side rendering
 
-### Server-Side Rendering
+`render_to_string()` omitted `data-reactroot` when the root had no properties.
+The marker is now emitted only on the root element.
+`render_to_static_markup()` continues to omit hydration markers.
 
-`render_to_string()` não incluía `data-reactroot` quando o elemento raiz não
-possuía props. O marcador agora é emitido somente no elemento raiz, sem poluir
-os descendentes. `render_to_static_markup()` continua sem marcadores de
-hidratação.
+### Testing utilities
 
-### Utilitários de teste
+`pyreact.testing` imports pointed to missing modules. The test renderer now
+mounts the real tree, connects `screen`, supports `rerender()` and `cleanup()`,
+and forwards events to DOM listeners.
 
-Os imports de `pyreact.testing` apontavam para módulos inexistentes. O renderer
-de teste agora monta a árvore real, conecta o `screen`, suporta `rerender()` e
-`cleanup()`, e os eventos são encaminhados aos listeners do DOM.
+### CLI and generated projects
 
-### CLI e projetos gerados
+- Added the `pyreact` console entry while preserving `pyreact-framework`.
+- Added `public/index.html` and `public/.gitkeep` to the scaffold.
+- Added `--no-open` to `dev` for CI environments.
+- Made `build` produce a usable `dist`.
+- Fixed generated hooks that incorrectly used `use_effect` as a decorator.
+- Aligned the public version at 1.0.5.
 
-- adicionada a entrada de console `pyreact`, mantendo `pyreact-framework`;
-- o scaffold passa a incluir `public/index.html` e `public/.gitkeep`;
-- o comando `dev` ganhou `--no-open`, adequado para CI;
-- o comando `build` agora cria um `dist` utilizável;
-- o hook gerado deixou de usar `use_effect` como decorator inválido;
-- a versão pública foi alinhada para 1.0.5.
+### End-to-end tests
 
-### Testes E2E
+The old tests relied on an installed executable, fixed directories, sleeps, and
+fixed ports. Their isolated replacements create temporary projects, select a
+free port, wait for the server, validate generation and builds, exercise the
+counter in Chromium, and always stop the server.
 
-Os testes antigos dependiam de executável instalado, diretórios fixos, sleeps
-e portas fixas. Eles foram substituídos por E2E isolados que:
-
-- criam um projeto temporário;
-- escolhem uma porta livre;
-- aguardam o servidor responder;
-- validam scaffold, geração de componente/hook e build;
-- abrem o Chromium e exercitam incremento e decremento do contador;
-- finalizam o servidor mesmo quando um teste falha.
-
-## Resultado final
-
-Comando:
+## Final result
 
 ```bash
 python -m pytest -q
 ```
 
-Resultado:
-
 ```text
 106 passed
 ```
 
-Também foram verificados o carregamento do pacote, a renderização reativa, a
-CLI, o servidor HTTP, o build de produção e a interação real no navegador.
+Package loading, reactive rendering, the CLI, HTTP server, production build,
+and real browser interaction were also verified.

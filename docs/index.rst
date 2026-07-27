@@ -3,7 +3,8 @@
 Welcome to PyReact Framework's Documentation!
 ==============================================
 
-**PyReact Framework** é um framework web declarativo inspirado no React, construído nativamente para Python.
+**PyReact Framework** is a React-inspired declarative web framework built
+natively for Python.
 
 .. toctree::
    :maxdepth: 2
@@ -48,6 +49,10 @@ Welcome to PyReact Framework's Documentation!
    resources/faq
    resources/changelog
    resources/contributing
+   GUIA_EXECUCAO_E_TESTES
+   PUBLICACAO_AUTOMATICA
+   RELATORIO_CORRECOES_E_TESTES
+   DOCUMENTACAO_CRIADA
 
 Indices and tables
 ==================

@@ -1,42 +1,42 @@
-# Orbit Board — Boilerplate PyReact
+# Orbit Board — PyReact Boilerplate
 
-Aplicação de gestão de tarefas criada pela CLI do PyReact e expandida para
-demonstrar o framework em um projeto com estrutura, estado e testes reais.
+A task-management application created by the PyReact CLI and expanded to show
+the framework in a realistic project with structure, state, and tests.
 
-## O que o exemplo demonstra
+## What this example demonstrates
 
-- scaffold criado com `pyreact create boilerplate`;
-- componentes funcionais reutilizáveis;
-- `use_state` para tarefas e filtro ativo;
-- `use_memo` e hook customizado para métricas derivadas;
-- eventos de criação, conclusão, exclusão e filtragem;
-- reconciliação do DOM após múltiplas atualizações;
-- SSR estático de componentes de apresentação;
-- testes de integração no DOM Python;
-- teste E2E no Chromium;
-- servidor de desenvolvimento e build estático.
+- a scaffold created with `pyreact create boilerplate`;
+- reusable functional components;
+- `use_state` for tasks and the active filter;
+- `use_memo` and a custom hook for derived metrics;
+- creation, completion, deletion, and filtering events;
+- DOM reconciliation after multiple updates;
+- static SSR for presentation components;
+- integration tests against the Python DOM;
+- an end-to-end Chromium test;
+- development server and static build.
 
-## Estrutura
+## Layout
 
 ```text
 boilerplate/
-├── public/index.html          # interface web servida pelo CLI
+├── public/index.html          # Web interface served by the CLI
 ├── src/
 │   ├── components/
 │   │   ├── stat_card.py
 │   │   └── task_card.py
 │   ├── hooks/use_task_stats.py
-│   └── index.py               # aplicação construída com a API PyReact
+│   └── index.py               # Application built with the PyReact API
 ├── tests/
-│   ├── test_app.py            # integração do runtime Python
-│   └── test_browser_e2e.py    # fluxo real no Chromium
+│   ├── test_app.py            # Python runtime integration
+│   └── test_browser_e2e.py    # Real Chromium flow
 └── pyproject.toml
 ```
 
-## Instalação
+## Installation
 
-Como este boilerplate está dentro do repositório do framework, instale a versão
-local em modo editável:
+Because this boilerplate lives inside the framework repository, install the
+local framework in editable mode:
 
 ```bash
 cd ..
@@ -45,45 +45,30 @@ cd boilerplate
 python -m playwright install chromium
 ```
 
-## Executar
+## Run
 
 ```bash
 pyreact dev
 ```
 
-Acesse `http://127.0.0.1:3000`.
-
-Para executar sem abrir o navegador automaticamente:
+Open `http://127.0.0.1:3000`. To avoid opening a browser automatically:
 
 ```bash
 pyreact dev --no-open --port 3000
 ```
 
-## Testar
+## Test and build
 
 ```bash
 python -m pytest -q
-```
-
-Resultado esperado:
-
-```text
-5 passed
-```
-
-## Build
-
-```bash
 pyreact build
 ```
 
-O resultado é criado em `dist/index.html`.
+The static build is written to `dist/index.html`.
 
-## Nota sobre o runtime atual
+## Current runtime note
 
-O código em `src/index.py` exercita o runtime Python do PyReact nos testes de
-integração. A versão atual da CLI ainda não transpila Python para JavaScript;
-por isso, o servidor web entrega a implementação equivalente e autocontida de
-`public/index.html`. Os dois caminhos representam a mesma aplicação e são
-validados separadamente.
-
+`src/index.py` exercises the Python runtime in integration tests. The current
+CLI does not transpile Python to JavaScript, so the web server delivers the
+equivalent self-contained implementation from `public/index.html`. Both paths
+represent the same application and are validated independently.

@@ -1,57 +1,50 @@
-# Guia de Execução e Testes — PyReact
+# PyReact execution and testing guide
 
-## Preparação
+## Preparation
 
-Na raiz do repositório:
+From the repository root:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-Para executar os testes E2E, instale também o Playwright e o Chromium:
+For end-to-end tests, also install Playwright and Chromium:
 
 ```bash
 python -m pip install playwright
 python -m playwright install chromium
 ```
 
-## Testar o framework
-
-Suíte completa:
+## Test the framework
 
 ```bash
+# Complete suite
 python -m pytest -q
-```
 
-Somente E2E:
-
-```bash
+# End-to-end only
 python -m pytest tests/e2e -q
-```
 
-Com cobertura:
-
-```bash
+# Coverage
 python -m pytest --cov=pyreact --cov-report=term-missing
 ```
 
-## Criar e executar um projeto
+## Create and run a project
 
 ```bash
-pyreact create meu-app
-cd meu-app
+pyreact create my-app
+cd my-app
 pyreact dev
 ```
 
-Em ambientes de CI ou quando não se deseja abrir uma janela automaticamente:
+In CI or when a browser window should not open:
 
 ```bash
 pyreact dev --no-open --port 3000
 ```
 
-Acesse `http://127.0.0.1:3000`.
+Open `http://127.0.0.1:3000`.
 
-## Gerar arquivos
+## Generate files
 
 ```bash
 pyreact generate component Button
@@ -65,18 +58,13 @@ pyreact generate hook useCounter
 pyreact build
 ```
 
-Os arquivos públicos são copiados para `dist`. O conteúdo dessa pasta pode ser
-servido por qualquer servidor HTTP estático.
+Public files are copied to `dist`, which can be served by any static HTTP
+server.
 
-## Gerar novamente os PDFs
+## Regenerate PDF files
 
 ```bash
 python scripts/generate_pdfs.py
 ```
 
-O comando atualiza:
-
-- `docs/Manual_PyReact.pdf`;
-- `docs/Relatorio_Correcoes_e_Testes.pdf`;
-- `docs/Guia_Execucao_e_Testes.pdf`.
-
+The command refreshes the three PDF files stored under `docs/`.

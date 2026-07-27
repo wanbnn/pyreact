@@ -165,7 +165,7 @@ Reference to DOM element:
            return element('input', {'ref': self.input_ref})
 
 Style
-~~~~
+~~~~~
 
 Inline styles:
 
