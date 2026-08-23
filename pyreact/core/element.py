@@ -15,12 +15,12 @@ if TYPE_CHECKING:
 class VNode:
     """
     Virtual DOM Node
-    
+
     Represents a node in the virtual DOM tree. Can be:
     - An HTML element ('div', 'span', etc.)
     - A Component (function or class)
     - A text node (string)
-    
+
     Attributes:
         type: Element type (string tag name or Component class/callable)
         props: Dictionary of properties/attributes
@@ -106,15 +106,30 @@ def h(
     # Flatten children (handle nested lists)
     flat_children: List[Union[VNode, str]] = []
     for child in children:
-        if isinstance(child, list):
+        if isinstance(child, (list, tuple)):
             flat_children.extend(_flatten_children(child))
-        elif child is not None:
+        elif isinstance(child, bool) or child is None:
+            continue
+        elif isinstance(child, (int, float)):
+            flat_children.append(str(child))
+        elif isinstance(child, (VNode, str)) or callable(child):
             flat_children.append(child)
-    
-    # Extract special props
+        else:
+            # Portals and other renderer extensions are accepted explicitly.
+            from .portal import is_portal
+            if is_portal(child):
+                flat_children.append(child)
+            else:
+                raise TypeError(f'Unsupported child type: {child.__class__.__name__}')
+
+    # Extract special props. Component children are also exposed through props,
+    # which is the contract documented by PyReact and expected by composition
+    # APIs such as Context and ErrorBoundary.
     props = props.copy() if props else {}
     key = props.pop('key', None)
     ref = props.pop('ref', None)
+    if callable(type) and not isinstance(type, str):
+        props['children'] = flat_children
     
     return VNode(
         type=type,
@@ -131,10 +146,20 @@ def _flatten_children(
     """Recursively flatten nested children lists"""
     result: List[Union[VNode, str]] = []
     for child in children:
-        if isinstance(child, list):
+        if isinstance(child, (list, tuple)):
             result.extend(_flatten_children(child))
-        elif child is not None:
+        elif isinstance(child, bool) or child is None:
+            continue
+        elif isinstance(child, (int, float)):
+            result.append(str(child))
+        elif isinstance(child, (VNode, str)) or callable(child):
             result.append(child)
+        else:
+            from .portal import is_portal
+            if is_portal(child):
+                result.append(child)
+            else:
+                raise TypeError(f'Unsupported child type: {child.__class__.__name__}')
     return result
 
 
@@ -197,12 +222,18 @@ def clone_element(
         new_props.update(props)
     
     # Use new children if provided, otherwise keep original
-    new_children = list(children) if children else element.children.copy()
+    new_children = _flatten_children(list(children)) if children else element.children.copy()
+    if callable(element.type) and not isinstance(element.type, str):
+        new_props['children'] = new_children
+
+    # key/ref are VNode metadata, not ordinary component props.
+    new_key = new_props.pop('key', element.key)
+    new_ref = new_props.pop('ref', element.ref)
     
     return VNode(
         type=element.type,
         props=new_props,
         children=new_children,
-        key=props.get('key', element.key) if props else element.key,
-        ref=props.get('ref', element.ref) if props else element.ref
+        key=new_key,
+        ref=new_ref
     )

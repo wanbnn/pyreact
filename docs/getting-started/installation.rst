@@ -46,7 +46,7 @@ You should see output similar to:
 
 .. code-block:: text
 
-   PyReact Framework v1.0.5
+   PyReact Framework v1.1.0
 
 Next Steps
 ----------

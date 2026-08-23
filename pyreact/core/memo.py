@@ -40,26 +40,10 @@ def memo(
     """
     @wraps(component)
     def memoized(props: Dict[str, Any]) -> VNode:
-        # Check if we have previous props
-        if memoized._prev_props is not None:
-            # Compare props
-            if are_props_equal:
-                should_update = not are_props_equal(memoized._prev_props, props)
-            else:
-                should_update = not _shallow_equal(memoized._prev_props, props)
-            
-            if not should_update:
-                return memoized._prev_result
-        
-        # Render and cache
-        result = component(props)
-        memoized._prev_props = props.copy()
-        memoized._prev_result = result
-        return result
-    
-    memoized._prev_props = None
-    memoized._prev_result = None
+        return component(props)
+
     memoized._component = component
+    memoized._pyreact_memo_compare = are_props_equal or _shallow_equal
     
     return memoized
 
@@ -99,10 +83,12 @@ def lazy(loader: Callable[[], Any]) -> Callable:
         def component_did_mount(self):
             """Load the component"""
             import asyncio
-            
-            async def load():
+            import inspect
+
+            async def resolve():
                 try:
-                    module = await loader()
+                    loaded = loader()
+                    module = await loaded if inspect.isawaitable(loaded) else loaded
                     component = getattr(module, 'default', module)
                     self.set_state({
                         'loaded': True,
@@ -112,12 +98,11 @@ def lazy(loader: Callable[[], Any]) -> Callable:
                     self.set_state({'error': e})
             
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
             except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            loop.run_until_complete(load())
+                asyncio.run(resolve())
+            else:
+                loop.create_task(resolve())
         
         def render(self):
             if self.state['error']:

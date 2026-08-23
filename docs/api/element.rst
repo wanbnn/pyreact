@@ -3,29 +3,28 @@
 Element API
 ===========
 
-The ``element()`` function is the core building block of PyReact. It creates virtual DOM elements.
+The ``h()`` function is the core building block of PyReact. It creates virtual DOM elements.
 
 Function Signature
 ------------------
 
-.. py:function:: element(type, props={}, *children)
+.. py:function:: h(type, props=None, *children)
 
-   Creates a virtual DOM element.
+   Creates a virtual DOM node (``VNode``).
 
-   :param type: The type of element. Can be:
+   :param type: The node type. It can be:
       - A string (HTML tag name like 'div', 'span', 'h1')
       - A component class or function
-      - A fragment (``Fragment``)
-   :type type: str | Component | Fragment
+   :type type: str | Component | callable
 
-   :param props: Properties/attributes for the element
+   :param props: Properties/attributes for the node
    :type props: dict, optional
 
    :param children: Child elements
-   :type children: element | str | list
+   :type children: VNode | str | int | float | list | tuple
 
-   :returns: A virtual DOM element
-   :rtype: Element
+   :returns: A virtual DOM node
+   :rtype: VNode
 
 Basic Usage
 -----------
@@ -34,18 +33,18 @@ Create HTML elements:
 
 .. code-block:: python
 
-   from pyreact import element
+   from pyreact import h
 
    # Simple element
-   element('div')
+   h('div')
    
    # Element with props
-   element('div', {'class': 'container', 'id': 'main'})
+   h('div', {'class': 'container', 'id': 'main'})
    
    # Element with children
-   element('div', {},
-       element('h1', {}, 'Title'),
-       element('p', {}, 'Paragraph')
+   h('div', {},
+       h('h1', {}, 'Title'),
+       h('p', {}, 'Paragraph')
    )
 
 HTML Elements
@@ -56,15 +55,15 @@ Create standard HTML elements:
 .. code-block:: python
 
    # Text content
-   element('h1', {}, 'Hello World')
-   element('p', {}, 'This is a paragraph')
+   h('h1', {}, 'Hello World')
+   h('p', {}, 'This is a paragraph')
    
    # Attributes
-   element('input', {'type': 'text', 'placeholder': 'Enter name'})
-   element('a', {'href': 'https://example.com', 'target': '_blank'}, 'Link')
+   h('input', {'type': 'text', 'placeholder': 'Enter name'})
+   h('a', {'href': 'https://example.com', 'target': '_blank'}, 'Link')
    
    # Styles
-   element('div', {
+   h('div', {
        'style': {
            'backgroundColor': 'red',
            'padding': '10px'
@@ -78,31 +77,16 @@ Create component instances:
 
 .. code-block:: python
 
-   from pyreact import element
+   from pyreact import h
    from my_components import Button, Card
 
    # Function component
-   element(Button, {'text': 'Click me', 'onClick': handle_click})
+   h(Button, {'text': 'Click me', 'onClick': handle_click})
    
    # Class component
-   element(Card, {'title': 'My Card'},
-       element('p', {}, 'Card content')
+   h(Card, {'title': 'My Card'},
+       h('p', {}, 'Card content')
    )
-
-Fragments
----------
-
-Group elements without adding extra DOM nodes:
-
-.. code-block:: python
-
-   from pyreact import element, Fragment
-
-   def ListItem(props):
-       return element(Fragment, {},
-           element('dt', {}, props['term']),
-           element('dd', {}, props['definition'])
-       )
 
 Children
 --------
@@ -112,21 +96,21 @@ Pass children in different ways:
 .. code-block:: python
 
    # As positional arguments
-   element('div', {},
-       element('p', {}, 'First'),
-       element('p', {}, 'Second')
+   h('div', {},
+       h('p', {}, 'First'),
+       h('p', {}, 'Second')
    )
    
    # As a list
    children = [
-       element('p', {}, 'First'),
-       element('p', {}, 'Second')
+       h('p', {}, 'First'),
+       h('p', {}, 'Second')
    ]
-   element('div', {}, *children)
+   h('div', {}, *children)
    
    # Mixed
-   element('ul', {'class': 'list'},
-       *[element('li', {}, f'Item {i}') for i in range(5)]
+   h('ul', {'class': 'list'},
+       *[h('li', {}, f'Item {i}') for i in range(5)]
    )
 
 Special Props
@@ -139,15 +123,15 @@ Unique identifier for list items:
 
 .. code-block:: python
 
-   element('ul', {},
-       *[element('li', {'key': item['id']}, item['text']) 
+   h('ul', {},
+       *[h('li', {'key': item['id']}, item['text'])
          for item in items]
    )
 
 Ref
 ~~~
 
-Reference to DOM element:
+Reference to a DOM element:
 
 .. code-block:: python
 
@@ -162,7 +146,7 @@ Reference to DOM element:
            self.input_ref.current.focus()
        
        def render(self):
-           return element('input', {'ref': self.input_ref})
+           return h('input', {'ref': self.input_ref})
 
 Style
 ~~~~~
@@ -171,7 +155,7 @@ Inline styles:
 
 .. code-block:: python
 
-   element('div', {
+   h('div', {
        'style': {
            'color': 'red',
            'fontSize': '16px',  # camelCase
@@ -186,10 +170,10 @@ CSS class names:
 
 .. code-block:: python
 
-   element('div', {'class': 'container active'})
+   h('div', {'class': 'container active'})
    
    # Multiple classes
-   element('div', {'class': 'btn btn-primary btn-large'})
+   h('div', {'class': 'btn btn-primary btn-large'})
 
 dangerouslySetInnerHTML
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -198,7 +182,7 @@ Insert raw HTML (use with caution):
 
 .. code-block:: python
 
-   element('div', {
+   h('div', {
        'dangerouslySetInnerHTML': {'__html': '<strong>Bold</strong>'}
    })
 
@@ -209,7 +193,7 @@ Attach event handlers:
 
 .. code-block:: python
 
-   element('button', {
+   h('button', {
        'onClick': lambda e: print('Clicked'),
        'onMouseEnter': lambda e: print('Mouse entered'),
        'onFocus': lambda e: print('Focused')
@@ -222,7 +206,7 @@ Boolean attributes:
 
 .. code-block:: python
 
-   element('input', {
+   h('input', {
        'type': 'checkbox',
        'checked': True,  # checked
        'disabled': False  # not disabled
@@ -235,7 +219,7 @@ Custom data attributes:
 
 .. code-block:: python
 
-   element('div', {
+   h('div', {
        'data-id': '123',
        'data-type': 'user',
        'data-active': 'true'

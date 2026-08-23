@@ -12,10 +12,10 @@ Apply styles directly to elements:
 
 .. code-block:: python
 
-   from pyreact import element
+   from pyreact import h
 
    def StyledButton(props):
-       return element('button', {
+       return h('button', {
            'style': {
                'backgroundColor': '#007bff',
                'color': 'white',
@@ -35,9 +35,9 @@ Use CSS classes for styling:
 
    # Component
    def Card(props):
-       return element('div', {'class': 'card'},
-           element('h2', {'class': 'card-title'}, props['title']),
-           element('p', {'class': 'card-body'}, props['children'])
+       return h('div', {'class': 'card'},
+           h('h2', {'class': 'card-title'}, props['title']),
+           h('p', {'class': 'card-body'}, props['children'])
        )
 
 .. code-block:: css
@@ -73,13 +73,13 @@ Use CSS Modules in components:
 
 .. code-block:: python
 
-   from pyreact import element
+   from pyreact import h
    from styles import CardStyles  # Import CSS module
 
    def Card(props):
-       return element('div', {'class': CardStyles.card},
-           element('h2', {'class': CardStyles.title}, props['title']),
-           element('p', {'class': CardStyles.body}, props['children'])
+       return h('div', {'class': CardStyles.card},
+           h('h2', {'class': CardStyles.title}, props['title']),
+           h('p', {'class': CardStyles.body}, props['children'])
        )
 
 .. code-block:: css
@@ -125,7 +125,7 @@ Create styled components:
    ''')
 
    # Usage
-   element(Button, {'disabled': False}, 'Click me')
+   h(Button, {'disabled': False}, 'Click me')
 
 Theming
 -------
@@ -134,7 +134,7 @@ Implement theming:
 
 .. code-block:: python
 
-   from pyreact import element, Component, ThemeProvider
+   from pyreact import h, Component, ThemeProvider
 
    class App(Component):
        def render(self):
@@ -149,15 +149,15 @@ Implement theming:
                'dark': '#343a40'
            }
            
-           return element(ThemeProvider, {'theme': theme},
-               element(ThemedButton, {})
+           return h(ThemeProvider, {'theme': theme},
+               h(ThemedButton, {})
            )
 
    class ThemedButton(Component):
        def render(self):
            theme = self.use_theme()
            
-           return element('button', {
+           return h('button', {
                'style': {
                    'backgroundColor': theme['primary'],
                    'color': 'white'
@@ -171,12 +171,12 @@ Create responsive layouts:
 
 .. code-block:: python
 
-   from pyreact import element
+   from pyreact import h
 
    def ResponsiveGrid(props):
        items = props.get('items', [])
        
-       return element('div', {
+       return h('div', {
            'style': {
                'display': 'grid',
                'gridTemplateColumns': 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -184,7 +184,7 @@ Create responsive layouts:
                'padding': '20px'
            }
        },
-           *[element('div', {
+           *[h('div', {
                'style': {
                    'border': '1px solid #ddd',
                    'padding': '20px',

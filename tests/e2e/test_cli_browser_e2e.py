@@ -87,10 +87,10 @@ def test_scaffold_generate_and_build(generated_project: Path):
         "pyproject.toml",
         "README.md",
         "src/index.py",
-        "public/index.html",
         "tests/test_app.py",
     ]
     assert all((generated_project / item).exists() for item in expected)
+    assert not (generated_project / "public/index.html").exists()
 
     component = subprocess.run(
         [*CLI, "generate", "component", "Button"],
@@ -129,7 +129,8 @@ def test_scaffold_generate_and_build(generated_project: Path):
     assert generated_tests.returncode == 0, generated_tests.stderr
     assert (generated_project / "src/components/Button.py").exists()
     assert (generated_project / "src/hooks/use_counter.py").exists()
-    assert (generated_project / "dist/index.html").exists()
+    assert (generated_project / "dist/src/index.py").exists()
+    assert (generated_project / "dist/serve.py").exists()
 
 
 def test_counter_user_flow_in_browser(dev_server: str):
@@ -145,10 +146,10 @@ def test_counter_user_flow_in_browser(dev_server: str):
             increment = page.get_by_role("button", name="Increment counter")
             decrement = page.get_by_role("button", name="Decrement counter")
 
-            assert counter.text_content() == "Count: 0"
+            playwright.expect(counter).to_have_text("Count: 0")
             increment.click()
             increment.click()
             decrement.click()
-            assert counter.text_content() == "Count: 1"
+            playwright.expect(counter).to_have_text("Count: 1")
         finally:
             browser.close()

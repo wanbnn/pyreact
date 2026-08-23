@@ -7,26 +7,30 @@ Hooks allow you to use state and other React features without writing a class.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from functools import wraps
-import uuid
+from contextvars import ContextVar
 
 # Global context for hooks
 _current_component: Optional[Any] = None
 _hook_index: int = 0
+_component_context: ContextVar[Optional[Any]] = ContextVar(
+    'pyreact_current_component', default=None
+)
 
 
 def _get_current_component() -> Any:
     """Get the current component context"""
     global _current_component
-    if _current_component is None:
+    component = _component_context.get() or _current_component
+    if component is None:
         raise RuntimeError('Hooks can only be called inside a component')
-    return _current_component
+    return component
 
 
 def _set_current_component(component: Any) -> None:
     """Set the current component context"""
     global _current_component, _hook_index
     _current_component = component
+    _component_context.set(component)
     _hook_index = 0
     if component is not None:
         component._hook_index = 0
@@ -36,8 +40,19 @@ def _reset_hook_index() -> None:
     """Reset hook index for new render"""
     global _hook_index
     _hook_index = 0
-    if _current_component is not None:
-        _current_component._hook_index = 0
+    component = _component_context.get() or _current_component
+    if component is not None:
+        component._hook_index = 0
+
+
+def _register_hook(component: Any, hook_index: int, hook: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or validate a hook slot, enforcing stable hook ordering."""
+    if hook_index >= len(component._hooks):
+        component._hooks.append(hook)
+    current = component._hooks[hook_index]
+    if current.get('type') != hook['type']:
+        raise RuntimeError('Hook order changed between renders')
+    return current
 
 
 def _next_hook_index(component: Any) -> int:
@@ -80,14 +95,8 @@ def use_state(
     hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
-    if hook_index >= len(component._hooks):
-        initial = initial_value() if callable(initial_value) else initial_value
-        component._hooks.append({
-            'value': initial,
-            'type': 'state'
-        })
-    
-    hook = component._hooks[hook_index]
+    initial = initial_value() if hook_index >= len(component._hooks) and callable(initial_value) else initial_value
+    hook = _register_hook(component, hook_index, {'value': initial, 'type': 'state'})
     def set_state(new_value: Union[Any, Callable[[Any], Any]]) -> None:
         """Update state value"""
         if callable(new_value):
@@ -139,15 +148,11 @@ def use_reducer(
     hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
-    if hook_index >= len(component._hooks):
-        initial = init(initial_state) if init else initial_state
-        component._hooks.append({
-            'value': initial,
-            'type': 'reducer',
-            'reducer': reducer
-        })
-    
-    hook = component._hooks[hook_index]
+    initial = init(initial_state) if hook_index >= len(component._hooks) and init else initial_state
+    hook = _register_hook(component, hook_index, {
+        'value': initial, 'type': 'reducer', 'reducer': reducer
+    })
+    hook['reducer'] = reducer
     def dispatch(action: Any) -> None:
         """Dispatch an action to the reducer"""
         hook['value'] = hook['reducer'](hook['value'], action)
@@ -187,14 +192,10 @@ def use_effect(
     hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
-    if hook_index >= len(component._hooks):
-        component._hooks.append({
-            'type': 'effect',
-            'cleanup': None,
-            'deps': None
-        })
-    
-    hook = component._hooks[hook_index]
+    hook = _register_hook(component, hook_index, {
+        'type': 'effect', 'cleanup': None, 'deps': None, 'setup': None,
+        'pending': False, 'layout': False,
+    })
     # Check if dependencies changed
     deps_changed = (
         hook['deps'] is None or
@@ -203,16 +204,9 @@ def use_effect(
     )
     
     if deps_changed:
-        # Run cleanup from previous effect
-        if hook['cleanup']:
-            try:
-                hook['cleanup']()
-            except Exception:
-                pass
-        
-        # Run new setup
-        hook['cleanup'] = setup()
+        hook['setup'] = setup
         hook['deps'] = dependencies.copy() if dependencies is not None else None
+        hook['pending'] = True
 
 
 def use_layout_effect(
@@ -229,9 +223,9 @@ def use_layout_effect(
         setup: Function that returns cleanup function or None
         dependencies: List of values that trigger effect when changed
     """
-    # In this implementation, use_layout_effect behaves the same as use_effect
-    # A real implementation would schedule this to run synchronously after paint
     use_effect(setup, dependencies)
+    component = _get_current_component()
+    component._hooks[component._hook_index - 1]['layout'] = True
 
 
 def use_context(context: Any) -> Any:
@@ -253,16 +247,13 @@ def use_context(context: Any) -> Any:
     hook_index = _next_hook_index(component)
     
     # Initialize hook if needed
-    if hook_index >= len(component._hooks):
-        component._hooks.append({
-            'type': 'context',
-            'context': context,
-            'value': context._default_value
-        })
-    
-    hook = component._hooks[hook_index]
-    # Get current context value
-    return hook['context']._get_value() if hasattr(hook['context'], '_get_value') else hook['value']
+    current_value = context._get_value() if hasattr(context, '_get_value') else context._default_value
+    hook = _register_hook(component, hook_index, {
+        'type': 'context', 'context': context, 'value': current_value
+    })
+    if getattr(context, '_provider_stack', None):
+        hook['value'] = current_value
+    return hook['value']
 
 
 def use_ref(initial_value: Any = None) -> 'Ref':
@@ -435,7 +426,7 @@ def use_id() -> str:
     if hook_index >= len(component._hooks):
         component._hooks.append({
             'type': 'id',
-            'value': f"pyreact-{uuid.uuid4().hex[:8]}"
+            'value': f"pyreact-{getattr(component, '_tree_id', 'local')}-{hook_index}"
         })
     
     hook = component._hooks[hook_index]

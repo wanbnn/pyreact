@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'PyReact Framework'
 copyright = '2026, wanbnn'
 author = 'wanbnn'
-release = '1.0.5'
+release = '1.1.0'
 language = 'en'
 
 # -- General configuration ---------------------------------------------------

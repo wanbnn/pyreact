@@ -14,13 +14,13 @@ Test components with pytest:
    :caption: tests/test_button.py
 
    import pytest
-   from pyreact import element
+   from pyreact import h
    from pyreact.testing import render, fireEvent
    from my_app.components import Button
 
    def test_button_renders():
        """Test that button renders with correct text"""
-       result = render(element(Button, {'text': 'Click me'}))
+       result = render(h(Button, {'text': 'Click me'}))
        assert result.text == 'Click me'
    
    def test_button_click():
@@ -30,7 +30,7 @@ Test components with pytest:
        def handle_click(event):
            clicked.append(True)
        
-       result = render(element(Button, {
+       result = render(h(Button, {
            'text': 'Click me',
            'onClick': handle_click
        }))
@@ -46,18 +46,18 @@ Test component state changes:
 .. code-block:: python
    :caption: tests/test_counter.py
 
-   from pyreact import element
+   from pyreact import h
    from pyreact.testing import render, fireEvent
    from my_app.components import Counter
 
    def test_counter_initial_state():
        """Test counter initial state"""
-       result = render(element(Counter, {}))
+       result = render(h(Counter, {}))
        assert result.text == 'Count: 0'
    
    def test_counter_increment():
        """Test counter increment"""
-       result = render(element(Counter, {}))
+       result = render(h(Counter, {}))
        
        # Click increment button
        increment_btn = result.find('button', text='+')
@@ -67,7 +67,7 @@ Test component state changes:
    
    def test_counter_decrement():
        """Test counter decrement"""
-       result = render(element(Counter, {}))
+       result = render(h(Counter, {}))
        
        # Click decrement button
        decrement_btn = result.find('button', text='-')
@@ -83,18 +83,18 @@ Test component props:
 .. code-block:: python
    :caption: tests/test_greeting.py
 
-   from pyreact import element
+   from pyreact import h
    from pyreact.testing import render
    from my_app.components import Greeting
 
    def test_greeting_with_name():
        """Test greeting with name prop"""
-       result = render(element(Greeting, {'name': 'PyReact'}))
+       result = render(h(Greeting, {'name': 'PyReact'}))
        assert 'PyReact' in result.text
    
    def test_greeting_default():
        """Test greeting with default prop"""
-       result = render(element(Greeting, {}))
+       result = render(h(Greeting, {}))
        assert 'World' in result.text
 
 Testing Events
@@ -105,7 +105,7 @@ Test event handlers:
 .. code-block:: python
    :caption: tests/test_form.py
 
-   from pyreact import element
+   from pyreact import h
    from pyreact.testing import render, fireEvent
    from my_app.components import ContactForm
 
@@ -117,7 +117,7 @@ Test event handlers:
            event.preventDefault()
            submitted.append(event.data)
        
-       result = render(element(ContactForm, {
+       result = render(h(ContactForm, {
            'onSubmit': handle_submit
        }))
        
@@ -145,14 +145,14 @@ Test async operations:
    :caption: tests/test_data_fetcher.py
 
    import pytest
-   from pyreact import element
+   from pyreact import h
    from pyreact.testing import render, waitFor
    from my_app.components import DataFetcher
 
    @pytest.mark.asyncio
    async def test_data_fetcher():
        """Test async data fetching"""
-       result = render(element(DataFetcher, {}))
+       result = render(h(DataFetcher, {}))
        
        # Initially shows loading
        assert 'Loading' in result.text
@@ -171,13 +171,13 @@ Test component integration:
 .. code-block:: python
    :caption: tests/test_app_integration.py
 
-   from pyreact import element
+   from pyreact import h
    from pyreact.testing import render, fireEvent
    from my_app import App
 
    def test_app_integration():
        """Test full app integration"""
-       result = render(element(App, {}))
+       result = render(h(App, {}))
        
        # Navigate to about page
        about_link = result.find('a', {'href': '/about'})

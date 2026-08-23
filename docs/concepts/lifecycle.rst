@@ -34,16 +34,16 @@ Called immediately after the component is mounted. Use this for:
            # Simulated data fetch
            import asyncio
            await asyncio.sleep(1)
-           self.setState({
+           self.set_state({
                'data': {'message': 'Hello from API'},
                'loading': False
            })
        
        def render(self):
            if self.state['loading']:
-               return element('div', {}, 'Loading...')
+               return h('div', {}, 'Loading...')
            
-           return element('div', {}, self.state['data']['message'])
+           return h('div', {}, self.state['data']['message'])
 
 Updating
 --------
@@ -72,7 +72,7 @@ Called after the component updates. Use this for:
            print(f'Fetching data for user {user_id}')
        
        def render(self):
-           return element('div', {}, f'User: {self.props["userId"]}')
+           return h('div', {}, f'User: {self.props["userId"]}')
 
 ``should_component_update(nextProps, nextState)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,7 +88,7 @@ Called before rendering. Return ``False`` to skip rendering:
        
        def render(self):
            # Expensive rendering operation
-           return element('div', {}, 'Expensive content')
+           return h('div', {}, 'Expensive content')
 
 Unmounting
 ----------
@@ -123,7 +123,7 @@ Called immediately before the component is unmounted. Use this for:
        def start_timer(self):
            import threading
            def tick():
-               self.setState({'seconds': self.state['seconds'] + 1})
+               self.set_state({'seconds': self.state['seconds'] + 1})
            
            timer = threading.Timer(1.0, tick)
            timer.start()
@@ -133,7 +133,7 @@ Called immediately before the component is unmounted. Use this for:
            timer_id.cancel()
        
        def render(self):
-           return element('div', {}, f'Seconds: {self.state["seconds"]}')
+           return h('div', {}, f'Seconds: {self.state["seconds"]}')
 
 Error Handling
 --------------
@@ -157,16 +157,16 @@ Called when an error is thrown during rendering:
            print(f'Error: {error}')
            print(f'Info: {info}')
            
-           self.setState({
+           self.set_state({
                'has_error': True,
                'error': error
            })
        
        def render(self):
            if self.state['has_error']:
-               return element('div', {'class': 'error'},
-                   element('h2', {}, 'Something went wrong'),
-                   element('p', {}, str(self.state['error']))
+               return h('div', {'class': 'error'},
+                   h('h2', {}, 'Something went wrong'),
+                   h('p', {}, str(self.state['error']))
                )
            
            return self.props.get('children', [])

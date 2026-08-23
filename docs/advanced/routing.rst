@@ -3,191 +3,72 @@
 Routing
 =======
 
-PyReact provides a built-in router for Single Page Applications (SPAs).
+PyReact includes a dependency-free router integrated with the server-driven
+runtime and the browser History API.
 
-Basic Routing
--------------
-
-Set up routing in your app:
-
-.. code-block:: python
-
-   from pyreact import element, Component
-   from pyreact.router import Router, Route, Link
-
-   class App(Component):
-       def render(self):
-           return element(Router, {},
-               element('nav', {},
-                   element(Link, {'to': '/'}, 'Home'),
-                   element(Link, {'to': '/about'}, 'About'),
-                   element(Link, {'to': '/contact'}, 'Contact')
-               ),
-               element('main', {},
-                   element(Route, {'path': '/', 'component': Home}),
-                   element(Route, {'path': '/about', 'component': About}),
-                   element(Route, {'path': '/contact', 'component': Contact})
-               )
-           )
-
-Route Parameters
-----------------
-
-Access route parameters:
+Route Table
+-----------
 
 .. code-block:: python
 
-   from pyreact.router import useParams
+   from pyreact import Link, Router, h, route, use_location, use_params
 
-   class UserProfile(Component):
-       def render(self):
-           params = useParams()
-           user_id = params['id']
-           
-           return element('div', {},
-               element('h1', {}, f'User Profile: {user_id}'),
-               element('p', {}, 'User details here...')
-           )
+   def Home(props):
+       return h("h1", None, "Home")
 
-   # Route definition
-   element(Route, {
-       'path': '/users/:id',
-       'component': UserProfile
-   })
+   def User(props):
+       params = use_params()
+       location = use_location()
+       return h("section", None,
+           h("h1", None, f"User {params['user_id']}"),
+           h("p", None, f"Query: {location.search}"),
+       )
 
-Query Parameters
-----------------
+   def NotFound(props):
+       return h("h1", {"role": "alert"}, "Not found")
 
-Access query parameters:
+   routes = [
+       route("/", Home),
+       route("/users/:user_id", User),
+   ]
 
-.. code-block:: python
+   def App(props):
+       return h("main", None,
+           h("nav", None,
+               h(Link, {"to": "/"}, "Home"),
+               h(Link, {"to": "/users/42?tab=profile"}, "Profile"),
+           ),
+           h(Router, {"routes": routes, "fallback": NotFound}),
+       )
 
-   from pyreact.router import useLocation
+Routes match exactly by default. Pass ``exact=False`` to ``route`` for a
+prefix route. Named segments use ``:name`` and a trailing ``*`` captures the
+remaining path in ``wildcard``.
 
-   class SearchResults(Component):
-       def render(self):
-           location = useLocation()
-           query = location.get('query', '')
-           page = int(location.get('page', 1))
-           
-           return element('div', {},
-               element('h1', {}, f'Search: {query}'),
-               element('p', {}, f'Page {page}')
-           )
-
-Nested Routes
--------------
-
-Create nested routes:
-
-.. code-block:: python
-
-   class Dashboard(Component):
-       def render(self):
-           return element('div', {'class': 'dashboard'},
-               element('aside', {},
-                   element(Link, {'to': '/dashboard'}, 'Overview'),
-                   element(Link, {'to': '/dashboard/settings'}, 'Settings'),
-                   element(Link, {'to': '/dashboard/profile'}, 'Profile')
-               ),
-               element('main', {},
-                   element(Route, {'path': '/dashboard', 'exact': True, 'component': DashboardHome}),
-                   element(Route, {'path': '/dashboard/settings', 'component': Settings}),
-                   element(Route, {'path': '/dashboard/profile', 'component': Profile})
-               )
-           )
-
-Programmatic Navigation
+Location and Parameters
 -----------------------
 
-Navigate programmatically:
+``use_params()`` returns a copy of the parameters for the active route.
+``use_location()`` returns an immutable ``Location`` with ``pathname``, raw
+``search``, and parsed ``query`` values. Query values are lists so repeated
+parameters are preserved.
+
+Links and Redirects
+-------------------
+
+``Link`` renders an anchor marked for client-side navigation. The runtime
+uses ``history.pushState`` and requests the destination without a full page
+load. ``Navigate`` emits an immediate refresh marker and is useful for simple
+server-side redirects:
 
 .. code-block:: python
 
-   from pyreact.router import useHistory
+   from pyreact import Navigate, h
 
-   class LoginForm(Component):
-       def __init__(self, props):
-           super().__init__(props)
-           self.history = useHistory()
-       
-       def handle_submit(self, event):
-           event.preventDefault()
-           # Perform login
-           success = self.login()
-           
-           if success:
-               # Redirect to dashboard
-               self.history.push('/dashboard')
-       
-       def render(self):
-           return element('form', {'onSubmit': self.handle_submit},
-               # ... form fields
-           )
+   def PrivatePage(props):
+       if not props.get("authenticated"):
+           return h(Navigate, {"to": "/login"})
+       return h("h1", None, "Private page")
 
-Route Guards
-------------
-
-Protect routes with guards:
-
-.. code-block:: python
-
-   from pyreact.router import Route, Redirect
-
-   class PrivateRoute(Component):
-       def render(self):
-           is_authenticated = self.props.get('isAuthenticated', False)
-           
-           if not is_authenticated:
-               return element(Redirect, {'to': '/login'})
-           
-           Component = self.props['component']
-           return element(Component, self.props)
-
-   # Usage
-   element(PrivateRoute, {
-       'path': '/dashboard',
-       'component': Dashboard,
-       'isAuthenticated': user.is_authenticated
-   })
-
-404 Not Found
--------------
-
-Handle 404 pages:
-
-.. code-block:: python
-
-   from pyreact.router import Switch, Route
-
-   class App(Component):
-       def render(self):
-           return element(Router, {},
-               element(Switch, {},
-                   element(Route, {'path': '/', 'component': Home}),
-                   element(Route, {'path': '/about', 'component': About}),
-                   element(Route, {'component': NotFound})  # 404 fallback
-               )
-           )
-
-   class NotFound(Component):
-       def render(self):
-           return element('div', {'class': 'not-found'},
-               element('h1', {}, '404 - Page Not Found'),
-               element(Link, {'to': '/'}, 'Go Home')
-           )
-
-Best Practices
---------------
-
-1. **Use meaningful routes** - ``/users/123`` instead of ``/u/123``
-2. **Handle 404s** - Always provide a fallback route
-3. **Protect sensitive routes** - Use route guards
-4. **Lazy load routes** - Improve performance with code splitting
-
-Next Steps
-----------
-
-- :doc:`/advanced/ssr` - Server-side rendering
-- :doc:`/advanced/styling` - Styling options
-- :doc:`/api/hooks` - Router hooks
+For unit tests or custom SSR adapters, use ``routing_context(url)`` from
+``pyreact.routing`` while rendering.

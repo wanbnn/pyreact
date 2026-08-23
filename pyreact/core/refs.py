@@ -79,8 +79,9 @@ def forward_ref(render: Callable) -> Callable:
         h(FancyInput, {'ref': input_ref, 'placeholder': 'Type here'})
     """
     def wrapper(props: Dict[str, Any]) -> 'VNode':
-        ref = props.pop('ref', None)
-        return render(props, ref)
+        forwarded_props = props.copy()
+        ref = forwarded_props.pop('ref', None)
+        return render(forwarded_props, ref)
     
     wrapper._forward_ref = True
     wrapper.__name__ = render.__name__
@@ -197,9 +198,9 @@ def attach_ref(ref: Any, value: Any) -> None:
     
     if isinstance(ref, Ref):
         ref.current = value
-    elif callable(ref):
-        ref(value)
     elif isinstance(ref, CallbackRef):
+        ref(value)
+    elif callable(ref):
         ref(value)
 
 

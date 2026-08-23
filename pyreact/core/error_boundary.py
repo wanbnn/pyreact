@@ -107,9 +107,8 @@ def with_error_boundary(
                 on_error(error, info)
     
     def wrapper(props):
-        return VNode(WrappedErrorBoundary, {
-            'fallback': fallback
-        }, [VNode(component, props)])
+        from .element import h
+        return h(WrappedErrorBoundary, {'fallback': fallback}, h(component, props))
     
     return wrapper
 

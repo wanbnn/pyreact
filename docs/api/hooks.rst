@@ -21,7 +21,7 @@ useState
 
    .. code-block:: python
 
-      from pyreact import element, useState
+      from pyreact import h, useState
 
       def Counter(props):
           count, set_count = useState(0)
@@ -29,9 +29,9 @@ useState
           def increment():
               set_count(count + 1)
           
-          return element('div', {},
-              element('p', {}, f'Count: {count}'),
-              element('button', {'onClick': increment}, 'Increment')
+          return h('div', {},
+              h('p', {}, f'Count: {count}'),
+              h('button', {'onClick': increment}, 'Increment')
           )
 
    Functional updates:
@@ -45,7 +45,7 @@ useState
               # Use function for derived state
               set_count(lambda prev: prev + 1)
           
-          return element('button', {'onClick': increment}, f'Count: {count}')
+          return h('button', {'onClick': increment}, f'Count: {count}')
 
 useEffect
 ---------
@@ -63,7 +63,7 @@ useEffect
 
    .. code-block:: python
 
-      from pyreact import element, useState, useEffect
+      from pyreact import h, useState, useEffect
 
       def DataFetcher(props):
           data, set_data = useState(None)
@@ -78,9 +78,9 @@ useEffect
           useEffect(fetch_data, [])
           
           if loading:
-              return element('div', {}, 'Loading...')
+              return h('div', {}, 'Loading...')
           
-          return element('div', {}, f'Data: {data}')
+          return h('div', {}, f'Data: {data}')
 
    With cleanup:
 
@@ -97,7 +97,7 @@ useEffect
           
           useEffect(setup_timer, [])
           
-          return element('div', {}, f'Seconds: {seconds}')
+          return h('div', {}, f'Seconds: {seconds}')
 
    With dependencies:
 
@@ -113,7 +113,7 @@ useEffect
           # Re-run when userId changes
           useEffect(fetch_user, [user_id])
           
-          return element('div', {}, f'User: {user}')
+          return h('div', {}, f'User: {user}')
 
 useContext
 ----------
@@ -131,14 +131,14 @@ useContext
 
    .. code-block:: python
 
-      from pyreact import element, createContext, useContext
+      from pyreact import h, createContext, useContext
 
       ThemeContext = createContext('light')
       
       def ThemedButton(props):
           theme = useContext(ThemeContext)
           
-          return element('button', {
+          return h('button', {
               'style': {'backgroundColor': theme['primary']}
           }, 'Click me')
 
@@ -158,7 +158,7 @@ useRef
 
    .. code-block:: python
 
-      from pyreact import element, useRef
+      from pyreact import h, useRef
 
       def TextInput(props):
           input_ref = useRef()
@@ -166,9 +166,9 @@ useRef
           def focus():
               input_ref.current.focus()
           
-          return element('div', {},
-              element('input', {'ref': input_ref}),
-              element('button', {'onClick': focus}, 'Focus')
+          return h('div', {},
+              h('input', {'ref': input_ref}),
+              h('button', {'onClick': focus}, 'Focus')
           )
 
 useMemo
@@ -189,7 +189,7 @@ useMemo
 
    .. code-block:: python
 
-      from pyreact import element, useMemo
+      from pyreact import h, useMemo
 
       def ExpensiveList(props):
           items = props['items']
@@ -201,8 +201,8 @@ useMemo
               [items, filter_text]
           )
           
-          return element('ul', {},
-              *[element('li', {'key': i['id']}, i['name']) 
+          return h('ul', {},
+              *[h('li', {'key': i['id']}, i['name'])
                 for i in filtered_items]
           )
 
@@ -224,7 +224,7 @@ useCallback
 
    .. code-block:: python
 
-      from pyreact import element, useCallback
+      from pyreact import h, useCallback
 
       def Parent(props):
           def handle_click(item_id):
@@ -233,8 +233,8 @@ useCallback
           # Memoize callback
           memoized_click = useCallback(handle_click, [])
           
-          return element('div', {},
-              *[element(ChildButton, {
+          return h('div', {},
+              *[h(ChildButton, {
                   'key': item['id'],
                   'id': item['id'],
                   'onClick': memoized_click
@@ -261,7 +261,7 @@ useReducer
 
    .. code-block:: python
 
-      from pyreact import element, useReducer
+      from pyreact import h, useReducer
 
       def reducer(state, action):
           if action['type'] == 'increment':
@@ -275,15 +275,15 @@ useReducer
       def Counter(props):
           state, dispatch = useReducer(reducer, {'count': 0})
           
-          return element('div', {},
-              element('p', {}, f'Count: {state["count"]}'),
-              element('button', {
+          return h('div', {},
+              h('p', {}, f'Count: {state["count"]}'),
+              h('button', {
                   'onClick': lambda: dispatch({'type': 'increment'})
               }, '+'),
-              element('button', {
+              h('button', {
                   'onClick': lambda: dispatch({'type': 'decrement'})
               }, '-'),
-              element('button', {
+              h('button', {
                   'onClick': lambda: dispatch({'type': 'reset', 'payload': 0})
               }, 'Reset')
           )
@@ -313,7 +313,7 @@ Create custom hooks:
    def App(props):
        name, set_name = useLocalStorage('name', 'Guest')
        
-       return element('input', {
+       return h('input', {
            'value': name,
            'onChange': lambda e: set_name(e.target.value)
        })

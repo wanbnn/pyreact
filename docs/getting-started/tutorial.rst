@@ -39,7 +39,7 @@ Create ``src/components/TodoItem.py``:
 
 .. code-block:: python
 
-   from pyreact import element, Component
+   from pyreact import h, Component
 
    class TodoItem(Component):
        def render(self):
@@ -47,16 +47,16 @@ Create ``src/components/TodoItem.py``:
            on_toggle = self.props['onToggle']
            on_delete = self.props['onDelete']
            
-           return element('li', {
+           return h('li', {
                'class': f'todo-item {"completed" if todo["completed"] else ""}'
            },
-               element('input', {
+               h('input', {
                    'type': 'checkbox',
                    'checked': todo['completed'],
                    'onChange': lambda e: on_toggle(todo['id'])
                }),
-               element('span', {'class': 'todo-text'}, todo['text']),
-               element('button', {
+               h('span', {'class': 'todo-text'}, todo['text']),
+               h('button', {
                    'class': 'delete-btn',
                    'onClick': lambda e: on_delete(todo['id'])
                }, '×')
@@ -69,7 +69,7 @@ Create ``src/components/TodoList.py``:
 
 .. code-block:: python
 
-   from pyreact import element, Component
+   from pyreact import h, Component
    from .TodoItem import TodoItem
 
    class TodoList(Component):
@@ -83,8 +83,8 @@ Create ``src/components/TodoList.py``:
            elif filter_type == 'completed':
                filtered_todos = [t for t in todos if t['completed']]
            
-           return element('ul', {'class': 'todo-list'},
-               *[element(TodoItem, {
+           return h('ul', {'class': 'todo-list'},
+               *[h(TodoItem, {
                    'todo': todo,
                    'onToggle': self.props['onToggle'],
                    'onDelete': self.props['onDelete']
@@ -98,7 +98,7 @@ Update ``src/index.py``:
 
 .. code-block:: python
 
-   from pyreact import element, Component, render
+   from pyreact import h, Component, render
    from components.TodoList import TodoList
 
    class App(Component):
@@ -117,7 +117,7 @@ Update ``src/index.py``:
                    'text': self.state['input'],
                    'completed': False
                }
-               self.setState({
+               self.set_state({
                    'todos': self.state['todos'] + [new_todo],
                    'input': ''
                })
@@ -127,50 +127,50 @@ Update ``src/index.py``:
            for todo in todos:
                if todo['id'] == todo_id:
                    todo['completed'] = not todo['completed']
-           self.setState({'todos': todos})
+           self.set_state({'todos': todos})
        
        def delete_todo(self, todo_id):
            todos = [t for t in self.state['todos'] if t['id'] != todo_id]
-           self.setState({'todos': todos})
+           self.set_state({'todos': todos})
        
        def set_filter(self, filter_type):
-           self.setState({'filter': filter_type})
+           self.set_state({'filter': filter_type})
        
        def render(self):
-           return element('div', {'class': 'app'},
-               element('h1', {}, 'Todo App'),
-               element('div', {'class': 'add-todo'},
-                   element('input', {
+           return h('div', {'class': 'app'},
+               h('h1', {}, 'Todo App'),
+               h('div', {'class': 'add-todo'},
+                   h('input', {
                        'type': 'text',
                        'value': self.state['input'],
-                       'onInput': lambda e: self.setState({'input': e.target.value}),
+                       'onInput': lambda e: self.set_state({'input': e.target.value}),
                        'placeholder': 'Add a todo...'
                    }),
-                   element('button', {'onClick': self.add_todo}, 'Add')
+                   h('button', {'onClick': self.add_todo}, 'Add')
                ),
-               element(TodoList, {
+               h(TodoList, {
                    'todos': self.state['todos'],
                    'filter': self.state['filter'],
                    'onToggle': self.toggle_todo,
                    'onDelete': self.delete_todo
                }),
-               element('div', {'class': 'filters'},
-                   element('button', {
+               h('div', {'class': 'filters'},
+                   h('button', {
                        'class': f"filter-btn {'' if self.state['filter'] == 'all' else ''}",
                        'onClick': lambda e: self.set_filter('all')
                    }, 'All'),
-                   element('button', {
+                   h('button', {
                        'class': f"filter-btn {'' if self.state['filter'] == 'active' else ''}",
                        'onClick': lambda e: self.set_filter('active')
                    }, 'Active'),
-                   element('button', {
+                   h('button', {
                        'class': f"filter-btn {'' if self.state['filter'] == 'completed' else ''}",
                        'onClick': lambda e: self.set_filter('completed')
                    }, 'Completed')
                )
            )
 
-   render(element(App, {}), root='root')
+   render(h(App, {}), root='root')
 
 Step 5: Add Styles
 ------------------

@@ -6,8 +6,9 @@
 [![Docs](https://readthedocs.org/projects/pyreact-framework/badge/?version=latest)](https://pyreact-framework.readthedocs.io/en/latest/)
 
 **PyReact** is a React-inspired declarative web framework built natively for
-Python. It provides reactive user interfaces, components, hooks, efficient
-rendering, server-side rendering, and a project CLI.
+Python. It provides reactive components and hooks, keyed reconciliation,
+server-side rendering and hydration, routing, streaming, hot reload, and a
+project CLI.
 
 ## Installation
 
@@ -39,10 +40,10 @@ cd my-app
 pyreact dev
 ```
 
-A functional counter:
+A functional counter in ``src/index.py``:
 
 ```python
-from pyreact import h, render, use_state
+from pyreact import h, use_state
 
 
 def Counter(props):
@@ -52,14 +53,26 @@ def Counter(props):
         "div",
         {"className": "counter"},
         h("h1", None, f"Count: {count}"),
-        h("button", {"onClick": lambda: set_count(count + 1)}, "+"),
-        h("button", {"onClick": lambda: set_count(count - 1)}, "-"),
+        h("button", {"onClick": lambda event: set_count(count + 1)}, "+"),
+        h("button", {"onClick": lambda event: set_count(count - 1)}, "-"),
     )
-
-
-root = document.getElementById("root")
-render(h(Counter, None), root)
 ```
+
+The development server discovers ``App`` (or the first component) in the
+configured entry module and serves it directly.
+
+## Execution model
+
+PyReact uses a server-driven model. Python is the authority for component
+state and rendering; each browser session owns an isolated component tree.
+The first request produces complete HTML, while a small built-in browser
+runtime forwards DOM events to Python and applies the updated markup. Links
+using the router integrate with the History API. In development, source-file
+changes invalidate sessions and trigger a browser reload.
+
+This model does not transpile Python into JavaScript. Production therefore
+runs a Python server created by ``pyreact build``. Static assets continue to
+be served from ``public/``.
 
 ## Components
 
@@ -88,7 +101,7 @@ class Counter(Component):
     def render(self):
         return h(
             "button",
-            {"onClick": lambda: self.set_state({"count": self.state["count"] + 1})},
+            {"onClick": lambda event: self.set_state({"count": self.state["count"] + 1})},
             f"Count: {self.state['count']}",
         )
 ```
@@ -111,8 +124,34 @@ def MyComponent(props):
 - `h(type, props, *children)` creates a virtual element (`VNode`).
 - `render(element, container)` renders an element into a DOM container.
 - `create_root(container)` creates a modern rendering root.
+- `hydrate_root(container, element)` hydrates an existing DOM tree without
+  replacing matching nodes.
 - `render_to_string(element)` renders hydratable server-side markup.
 - `render_to_static_markup(element)` renders static HTML.
+- `render_to_node_stream(element)` and `render_to_async_stream(element)` stream
+  server-rendered markup.
+- `Router`, `route`, `Link`, `use_location`, and `use_params` provide routing.
+- `serve(...)` starts the server-driven production runtime.
+
+Routing is explicit and dependency-free:
+
+```python
+from pyreact import Link, Router, h, route, use_params
+
+
+def User(props):
+    return h("h1", None, f"User {use_params()['user_id']}")
+
+
+def App(props):
+    return h("main", None,
+        h(Link, {"to": "/users/42"}, "Profile"),
+        h(Router, {
+            "routes": [route("/users/:user_id", User)],
+            "fallback": h("h1", None, "Not found"),
+        }),
+    )
+```
 
 See the complete [API reference](https://pyreact-framework.readthedocs.io/en/latest/).
 
@@ -120,7 +159,7 @@ See the complete [API reference](https://pyreact-framework.readthedocs.io/en/lat
 
 ```bash
 pyreact create <name>
-pyreact dev [--port PORT] [--no-open]
+pyreact dev [--host HOST] [--port PORT] [--no-open]
 pyreact generate component <name>
 pyreact generate hook <name>
 pyreact build
@@ -173,9 +212,10 @@ python -m build
 
 ## Publishing
 
-Every push to `master` runs tests, builds distributions, and publishes to PyPI
-through GitHub Actions. Authentication uses PyPI Trusted Publishing (OIDC), so
-the repository does not store a permanent upload token. See the
+Pull requests and pushes to `master` run the Python matrix, enforce at least
+95% line coverage, execute browser tests, and build validated distributions.
+Only a `v*` tag publishes to PyPI through Trusted Publishing (OIDC), so the
+repository does not store a permanent upload token. See the
 [automatic publishing guide](docs/PUBLICACAO_AUTOMATICA.md).
 
 ## Contributing

@@ -214,7 +214,19 @@ class Screen:
     
     def _find_by_label(self, node: Any, text: str) -> Optional[Any]:
         """Find input by label text"""
-        # Simplified implementation
+        if getattr(node, 'tag_name', None) == 'label' and text in getattr(
+            node, 'text_content', ''
+        ):
+            target_id = getattr(node, 'attributes', {}).get('for')
+            if target_id and self._container is not None:
+                return self._find_by_attr(self._container, 'id', target_id)
+            for child in getattr(node, 'children', []):
+                if getattr(child, 'tag_name', None) in ('input', 'textarea', 'select'):
+                    return child
+        for child in getattr(node, 'children', []):
+            result = self._find_by_label(child, text)
+            if result is not None:
+                return result
         return None
 
 

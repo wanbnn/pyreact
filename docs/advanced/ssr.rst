@@ -1,134 +1,85 @@
 .. _ssr:
 
-Server-Side Rendering (SSR)
+SSR, Hydration and Streaming
 ============================
 
-PyReact supports Server-Side Rendering (SSR) for improved SEO and initial load performance.
+Server-side rendering evaluates functional and class components in Python and
+returns escaped HTML. Functional components may use hooks during SSR; state is
+initialized and IDs are deterministic, while effects are deferred until a DOM
+commit.
 
-What is SSR?
-------------
-
-SSR renders your PyReact components on the server and sends the HTML to the client. This provides:
-
-- **Better SEO** - Search engines can crawl your content
-- **Faster initial load** - Users see content immediately
-- **Better performance** - Reduced client-side JavaScript
-
-Enabling SSR
-------------
-
-Enable SSR in your ``pyproject.toml``:
-
-.. code-block:: toml
-
-   [tool.pyreact]
-   ssr = true
-
-SSR Configuration
------------------
-
-Configure SSR in your project:
+Rendering HTML
+--------------
 
 .. code-block:: python
-   :caption: src/server.py
 
-   from pyreact import render_to_string
-   from my_app import App
+   from pyreact import h, render_to_static_markup, render_to_string, use_id
 
-   def handler(request):
-       # Render app to HTML string
-       html = render_to_string(element(App, {}))
-       
-       return {
-           'status': 200,
-           'headers': {'Content-Type': 'text/html'},
-           'body': f'''
-           <!DOCTYPE html>
-           <html>
-           <head>
-               <title>My PyReact App</title>
-           </head>
-           <body>
-               <div id="root">{html}</div>
-               <script src="/static/client.js"></script>
-           </body>
-           </html>
-           '''
-       }
+   def App(props):
+       heading_id = use_id()
+       return h("main", None,
+           h("h1", {"id": heading_id}, props["title"]),
+       )
+
+   hydratable_html = render_to_string(h(App, {"title": "Dashboard"}))
+   static_html = render_to_static_markup(h(App, {"title": "Dashboard"}))
+
+``render_to_string`` adds a marker to the root for hydration.
+``render_to_static_markup`` omits it and is appropriate for email or pages that
+will never become interactive. Text and attributes are escaped. Raw HTML is
+accepted only through ``dangerouslySetInnerHTML={"__html": value}`` and must be
+trusted by the application.
 
 Hydration
 ---------
 
-Hydration attaches event listeners to server-rendered HTML:
-
-.. code-block:: python
-   :caption: src/index.py
-
-   from pyreact import hydrate
-   from my_app import App
-
-   # Hydrate the server-rendered HTML
-   hydrate(element(App, {}), root='root')
-
-Data Fetching
--------------
-
-Fetch data on the server:
+Hydration attaches component state, refs, effects, and event handlers to an
+existing matching DOM tree instead of recreating it:
 
 .. code-block:: python
 
-   from pyreact import element, Component
+   from pyreact import h, hydrate_root, use_hydration
 
-   class ProductList(Component):
-       @staticmethod
-       async def get_initial_props():
-           # Fetch data on server
-           import aiohttp
-           async with aiohttp.ClientSession() as session:
-               async with session.get('/api/products') as response:
-                   return await response.json()
-       
-       def render(self):
-           products = self.props.get('products', [])
-           return element('div', {},
-               *[element('div', {'key': p['id']},
-                   element('h3', {}, p['name']),
-                   element('p', {}, f"${p['price']}")
-               ) for p in products]
-           )
+   def App(props):
+       status = use_hydration()
+       return h("p", None, "Hydrating" if status["is_hydrating"] else "Ready")
 
-SSR Best Practices
-------------------
+   root = hydrate_root(container, h(App, None))
 
-1. **Avoid window/document** - These don't exist on the server
-2. **Check for server environment** - Use conditional logic
+The component tree used for hydration must produce the same h structure
+as the server render. Matching DOM elements preserve their identity. The
+``hydrate(h, container)`` form is also available.
+
+Streaming
+---------
+
+Use the synchronous iterator when writing to a WSGI-like response and the
+async iterator in an asynchronous server:
 
 .. code-block:: python
 
-   import os
+   from pyreact import h, render_to_async_stream, render_to_node_stream
 
-   class MyComponent(Component):
-       def render(self):
-           # Check if running on server
-           if os.environ.get('SERVER_SIDE'):
-               return element('div', {}, 'Server rendered')
-           
-           return element('div', {},
-               element('canvas', {'ref': self.canvas_ref})
-           )
+   for chunk in render_to_node_stream(h(App, {"title": "Dashboard"})):
+       response.write(chunk)
 
-3. **Handle async data** - Use ``get_initial_props`` for data fetching
+   async for chunk in render_to_async_stream(h(App, {"title": "Dashboard"})):
+       await response.write(chunk)
 
-SSR Limitations
----------------
+Static equivalents are available through ``render_to_static_node_stream``.
+The iterators preserve the same escaping and hook semantics as string SSR.
 
-- No access to browser APIs (window, document)
-- No lifecycle methods during SSR
-- State is initialized but not interactive until hydration
+Effects and Browser APIs
+------------------------
+
+SSR does not run effect callbacks or mount lifecycles because there is no DOM
+commit. They run after render or hydration in the DOM renderer. Components
+rendered directly through SSR should not read browser-only APIs while their
+render function is executing.
 
 Next Steps
 ----------
 
-- :doc:`/advanced/routing` - Add routing to your app
-- :doc:`/advanced/styling` - Learn about styling
-- :doc:`/api/component` - Component API reference
+- :doc:`/advanced/runtime` - Understand browser sessions and hot reload
+- :doc:`/advanced/routing` - Add application routes
+- :doc:`/api/hooks` - Hook API

@@ -13,12 +13,14 @@ from .ssr import (
     render_to_static_markup,
     render_to_node_stream,
     render_to_static_node_stream,
+    render_to_async_stream,
 )
 
 from .hydration import (
     hydrate,
     hydrate_root,
     HydrationMismatchError,
+    use_hydration,
 )
 
 __all__ = [
@@ -27,8 +29,10 @@ __all__ = [
     'render_to_static_markup',
     'render_to_node_stream',
     'render_to_static_node_stream',
+    'render_to_async_stream',
     # Hydration
     'hydrate',
     'hydrate_root',
     'HydrationMismatchError',
+    'use_hydration',
 ]

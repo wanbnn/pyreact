@@ -20,14 +20,14 @@ Function components are simple and concise:
 
 .. code-block:: python
 
-   from pyreact import element
+   from pyreact import h
 
    def Greeting(props):
        name = props.get('name', 'World')
-       return element('h1', {}, f'Hello, {name}!')
+       return h('h1', {}, f'Hello, {name}!')
 
    # Usage
-   element(Greeting, {'name': 'PyReact'})
+   h(Greeting, {'name': 'PyReact'})
 
 Class Components
 ----------------
@@ -36,7 +36,7 @@ Class components offer more features:
 
 .. code-block:: python
 
-   from pyreact import element, Component
+   from pyreact import h, Component
 
    class Counter(Component):
        def __init__(self, props):
@@ -44,12 +44,12 @@ Class components offer more features:
            self.state = {'count': 0}
        
        def increment(self, event):
-           self.setState({'count': self.state['count'] + 1})
+           self.set_state({'count': self.state['count'] + 1})
        
        def render(self):
-           return element('div', {},
-               element('p', {}, f'Count: {self.state["count"]}'),
-               element('button', {'onClick': self.increment}, 'Increment')
+           return h('div', {},
+               h('p', {}, f'Count: {self.state["count"]}'),
+               h('button', {'onClick': self.increment}, 'Increment')
            )
 
 Component Lifecycle
@@ -73,7 +73,7 @@ Class components have lifecycle methods:
            print('Component will unmount')
        
        def render(self):
-           return element('div', {}, 'My Component')
+           return h('div', {}, 'My Component')
 
 Component Composition
 ---------------------
@@ -83,20 +83,20 @@ Components can be composed together:
 .. code-block:: python
 
    def Header(props):
-       return element('header', {},
-           element('h1', {}, props['title'])
+       return h('header', {},
+           h('h1', {}, props['title'])
        )
    
    def Footer(props):
-       return element('footer', {},
-           element('p', {}, props['text'])
+       return h('footer', {},
+           h('p', {}, props['text'])
        )
    
    def App(props):
-       return element('div', {},
-           element(Header, {'title': 'My App'}),
-           element('main', {}, 'Content goes here'),
-           element(Footer, {'text': '© 2026'})
+       return h('div', {},
+           h(Header, {'title': 'My App'}),
+           h('main', {}, 'Content goes here'),
+           h(Footer, {'text': '© 2026'})
        )
 
 Best Practices

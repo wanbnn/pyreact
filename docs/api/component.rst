@@ -19,7 +19,7 @@ Component Class
 
    .. code-block:: python
 
-      from pyreact import element, Component
+      from pyreact import h, Component
 
       class MyComponent(Component):
           def __init__(self, props):
@@ -27,12 +27,12 @@ Component Class
               self.state = {'count': 0}
           
           def render(self):
-              return element('div', {}, f'Count: {self.state["count"]}')
+              return h('div', {}, f'Count: {self.state["count"]}')
 
 State Management
 ----------------
 
-.. py:method:: setState(state, callback=None)
+.. py:method:: set_state(state, callback=None)
 
    Updates the component's state and triggers a re-render.
 
@@ -52,15 +52,15 @@ State Management
           
           def increment(self):
               # Update state
-              self.setState({'count': self.state['count'] + 1})
+              self.set_state({'count': self.state['count'] + 1})
           
           def increment_async(self):
               # Functional update
-              self.setState(lambda state: {'count': state['count'] + 1})
+              self.set_state(lambda state: {'count': state['count'] + 1})
           
           def increment_with_callback(self):
               # With callback
-              self.setState(
+              self.set_state(
                   {'count': self.state['count'] + 1},
                   lambda: print(f'Count is now {self.state["count"]}')
               )
@@ -76,7 +76,7 @@ State Management
    .. code-block:: python
 
       def render(self):
-          return element('div', {}, f'Count: {self.state["count"]}')
+          return h('div', {}, f'Count: {self.state["count"]}')
 
 .. py:attribute:: props
 
@@ -89,7 +89,7 @@ State Management
    .. code-block:: python
 
       def render(self):
-          return element('h1', {}, f'Hello, {self.props["name"]}')
+          return h('h1', {}, f'Hello, {self.props["name"]}')
 
 Lifecycle Methods
 -----------------
@@ -192,7 +192,7 @@ Lifecycle Methods
               self.state = {'has_error': False}
           
           def component_did_catch(self, error, info):
-              self.setState({'has_error': True})
+              self.set_state({'has_error': True})
               log_error(error, info)
 
 Render Method
@@ -200,9 +200,9 @@ Render Method
 
 .. py:method:: render()
 
-   Must be implemented by the component. Returns the element tree.
+   Must be implemented by the component. Returns the h tree.
 
-   :returns: The element tree to render
+   :returns: The h tree to render
    :rtype: Element
 
    Example:
@@ -211,9 +211,9 @@ Render Method
 
       class MyComponent(Component):
           def render(self):
-              return element('div', {},
-                  element('h1', {}, 'Title'),
-                  element('p', {}, 'Content')
+              return h('div', {},
+                  h('h1', {}, 'Title'),
+                  h('p', {}, 'Content')
               )
 
 Force Update
@@ -242,11 +242,11 @@ Function components are simpler:
 
 .. py:function:: FunctionComponent(props)
 
-   A function that takes props and returns an element.
+   A function that takes props and returns an h.
 
    :param props: Properties passed to the component
    :type props: dict
-   :returns: An element tree
+   :returns: An h tree
    :rtype: Element
 
    Example:
@@ -255,7 +255,7 @@ Function components are simpler:
 
       def Greeting(props):
           name = props.get('name', 'World')
-          return element('h1', {}, f'Hello, {name}!')
+          return h('h1', {}, f'Hello, {name}!')
 
 Best Practices
 --------------

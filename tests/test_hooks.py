@@ -15,6 +15,7 @@ from pyreact.core.hooks import (
     _deps_changed,
 )
 from pyreact.core.element import VNode, h
+from pyreact.core.reconciler import Reconciler
 
 
 class MockComponent:
@@ -124,6 +125,7 @@ class TestUseEffect:
             return lambda: called.append('cleanup')
         
         use_effect(setup, [])
+        Reconciler._flush_effects(component, layout=False)
         assert 'effect' in called
     
     def test_cleanup_runs(self):
@@ -136,8 +138,7 @@ class TestUseEffect:
             return lambda: called.append('cleanup')
         
         use_effect(setup, [])
-        
-        # Simulate re-run with changed deps
+        Reconciler._flush_effects(component, layout=False)
         component._hooks[0]['cleanup']()
         assert 'cleanup' in called
     
@@ -153,16 +154,19 @@ class TestUseEffect:
         
         # First run
         use_effect(setup, [1])
+        Reconciler._flush_effects(component, layout=False)
         assert call_count[0] == 1
         
         # Same deps - should not run
         component._hook_index = 0
         use_effect(setup, [1])
+        Reconciler._flush_effects(component, layout=False)
         assert call_count[0] == 1
         
         # Different deps - should run
         component._hook_index = 0
         use_effect(setup, [2])
+        Reconciler._flush_effects(component, layout=False)
         assert call_count[0] == 2
 
 

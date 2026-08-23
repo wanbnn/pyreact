@@ -12,7 +12,7 @@ Initialize state in the constructor:
 
 .. code-block:: python
 
-   from pyreact import element, Component
+   from pyreact import h, Component
 
    class Counter(Component):
        def __init__(self, props):
@@ -22,7 +22,7 @@ Initialize state in the constructor:
 Updating State
 --------------
 
-Use ``setState()`` to update state:
+Use ``set_state()`` to update state:
 
 .. code-block:: python
 
@@ -32,8 +32,8 @@ Use ``setState()`` to update state:
            self.state = {'count': 0}
        
        def increment(self, event):
-           # ✅ Correct: Use setState
-           self.setState({'count': self.state['count'] + 1})
+           # ✅ Correct: Use set_state
+           self.set_state({'count': self.state['count'] + 1})
        
        def bad_increment(self, event):
            # ❌ Wrong: Never modify state directly
@@ -42,7 +42,7 @@ Use ``setState()`` to update state:
 State Updates are Merged
 ------------------------
 
-``setState()`` merges the new state with the existing state:
+``set_state()`` merges the new state with the existing state:
 
 .. code-block:: python
 
@@ -57,10 +57,10 @@ State Updates are Merged
        
        def update_name(self, event):
            # Only updates 'name', preserves 'email' and 'age'
-           self.setState({'name': event.target.value})
+           self.set_state({'name': event.target.value})
        
        def update_email(self, event):
-           self.setState({'email': event.target.value})
+           self.set_state({'email': event.target.value})
 
 Functional Updates
 ------------------
@@ -76,13 +76,13 @@ When new state depends on previous state, use a function:
        
        def increment(self, event):
            # Use function for derived state
-           self.setState(lambda state: {'count': state['count'] + 1})
+           self.set_state(lambda state: {'count': state['count'] + 1})
        
        def increment_three_times(self, event):
            # Multiple updates
-           self.setState(lambda state: {'count': state['count'] + 1})
-           self.setState(lambda state: {'count': state['count'] + 1})
-           self.setState(lambda state: {'count': state['count'] + 1})
+           self.set_state(lambda state: {'count': state['count'] + 1})
+           self.set_state(lambda state: {'count': state['count'] + 1})
+           self.set_state(lambda state: {'count': state['count'] + 1})
 
 State is Local
 --------------
@@ -93,10 +93,10 @@ State is local to the component:
 
    class App(Component):
        def render(self):
-           return element('div', {},
-               element(Counter, {}),  # Has its own state
-               element(Counter, {}),  # Has its own state
-               element(Counter, {})   # Has its own state
+           return h('div', {},
+               h(Counter, {}),  # Has its own state
+               h(Counter, {}),  # Has its own state
+               h(Counter, {})   # Has its own state
            )
 
 Lifting State Up
@@ -112,15 +112,15 @@ Share state between components by lifting it to their common ancestor:
            self.state = {'temperature': 0}
        
        def handle_change(self, temp):
-           self.setState({'temperature': temp})
+           self.set_state({'temperature': temp})
        
        def render(self):
-           return element('div', {},
-               element(TemperatureInput, {
+           return h('div', {},
+               h(TemperatureInput, {
                    'temperature': self.state['temperature'],
                    'onChange': self.handle_change
                }),
-               element(BoilingVerdict, {
+               h(BoilingVerdict, {
                    'celsius': self.state['temperature']
                })
            )
@@ -149,7 +149,7 @@ Best Practices
 1. **Minimize state** - Keep state as simple as possible
 2. **Lift state up** - Share state by lifting to common ancestor
 3. **Don't duplicate state** - Compute derived values instead
-4. **Use setState** - Never modify state directly
+4. **Use set_state** - Never modify state directly
 
 Next Steps
 ----------

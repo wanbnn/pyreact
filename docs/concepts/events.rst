@@ -8,18 +8,18 @@ PyReact uses synthetic events to handle user interactions. Events are similar to
 Event Handling
 --------------
 
-Handle events by passing functions to element props:
+Handle events by passing functions to h props:
 
 .. code-block:: python
 
-   from pyreact import element, Component
+   from pyreact import h, Component
 
    class Button(Component):
        def handle_click(self, event):
            print('Button clicked!')
        
        def render(self):
-           return element('button', {
+           return h('button', {
                'onClick': self.handle_click
            }, 'Click me')
 
@@ -33,7 +33,7 @@ Mouse Events
 
 .. code-block:: python
 
-   element('div', {
+   h('div', {
        'onClick': lambda e: print('Clicked'),
        'onDoubleClick': lambda e: print('Double clicked'),
        'onMouseEnter': lambda e: print('Mouse entered'),
@@ -46,7 +46,7 @@ Keyboard Events
 
 .. code-block:: python
 
-   element('input', {
+   h('input', {
        'onKeyDown': lambda e: print(f'Key down: {e.key}'),
        'onKeyUp': lambda e: print(f'Key up: {e.key}'),
        'onKeyPress': lambda e: print(f'Key pressed: {e.key}')
@@ -57,13 +57,13 @@ Form Events
 
 .. code-block:: python
 
-   element('form', {
+   h('form', {
        'onSubmit': lambda e: e.preventDefault()
    },
-       element('input', {
+       h('input', {
            'onChange': lambda e: print(f'Value: {e.target.value}')
        }),
-       element('button', {'type': 'submit'}, 'Submit')
+       h('button', {'type': 'submit'}, 'Submit')
    )
 
 Focus Events
@@ -71,7 +71,7 @@ Focus Events
 
 .. code-block:: python
 
-   element('input', {
+   h('input', {
        'onFocus': lambda e: print('Focused'),
        'onBlur': lambda e: print('Blurred')
    })
@@ -110,10 +110,10 @@ Pass arguments to event handlers:
        
        def render(self):
            todos = self.props['todos']
-           return element('ul', {},
-               *[element('li', {'key': todo['id']},
-                   element('span', {}, todo['text']),
-                   element('button', {
+           return h('ul', {},
+               *[h('li', {'key': todo['id']},
+                   h('span', {}, todo['text']),
+                   h('button', {
                        'onClick': lambda e, id=todo['id']: self.delete_todo(id, e)
                    }, 'Delete')
                ) for todo in todos]
@@ -130,7 +130,7 @@ Conditionally attach event handlers:
        def render(self):
            disabled = self.props.get('disabled', False)
            
-           return element('button', {
+           return h('button', {
                'disabled': disabled,
                'onClick': None if disabled else self.handle_click
            }, 'Click me')

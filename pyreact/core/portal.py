@@ -40,6 +40,7 @@ class Portal:
         self.children = children
         self.container = container
         self._dom_nodes: list = []
+        self._placeholder: Any = None
     
     def __repr__(self) -> str:
         return f"Portal(container={self.container!r})"
@@ -89,8 +90,8 @@ def unmount_portal(portal: Portal) -> None:
         portal: Portal to unmount
     """
     for dom_node in portal._dom_nodes:
-        if dom_node and dom_node.parentNode:
-            dom_node.parentNode.removeChild(dom_node)
+        if dom_node and dom_node.parent_node:
+            dom_node.parent_node.remove_child(dom_node)
     portal._dom_nodes.clear()
 
 
@@ -103,19 +104,19 @@ def render_portal(portal: Portal, renderer: Any) -> None:
         renderer: Renderer instance
     """
     # Clear existing content
-    while portal.container.firstChild:
-        portal.container.removeChild(portal.container.firstChild)
+    while portal.container.first_child:
+        portal.container.remove_child(portal.container.first_child)
     
     # Render children
     if isinstance(portal.children, VNode):
         dom = renderer.create_dom(portal.children)
-        portal.container.appendChild(dom)
+        portal.container.append_child(dom)
         portal._dom_nodes.append(dom)
     elif isinstance(portal.children, list):
         for child in portal.children:
             if isinstance(child, VNode):
                 dom = renderer.create_dom(child)
-                portal.container.appendChild(dom)
+                portal.container.append_child(dom)
                 portal._dom_nodes.append(dom)
 
 

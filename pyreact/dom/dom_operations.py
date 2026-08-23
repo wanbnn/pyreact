@@ -54,6 +54,7 @@ class Element(DOMNode):
         self.style: Dict[str, str] = {}
         self._event_listeners: Dict[str, list] = {}
         self._text_content: str = ''
+        self._raw_inner_html: bool = False
     
     def set_attribute(self, name: str, value: str) -> None:
         """Set an attribute"""
@@ -91,6 +92,7 @@ class Element(DOMNode):
     def set_inner_html(self, html: str) -> None:
         """Set inner HTML"""
         self._text_content = html
+        self._raw_inner_html = True
         self.child_nodes.clear()
     
     def insert_child(self, child: 'DOMNode', index: int) -> None:
@@ -132,6 +134,7 @@ class Element(DOMNode):
     def inner_html(self, value: str):
         """Set inner HTML"""
         self._text_content = value
+        self._raw_inner_html = True
         self.child_nodes.clear()
 
     @property
@@ -150,6 +153,7 @@ class Element(DOMNode):
     @text_content.setter
     def text_content(self, value: str) -> None:
         self._text_content = str(value)
+        self._raw_inner_html = False
         self.child_nodes.clear()
     
     def get_element_by_id(self, id: str) -> Optional['Element']:
@@ -198,15 +202,15 @@ class Element(DOMNode):
     
     def focus(self) -> None:
         """Focus the element"""
-        pass
+        dispatch_event(self, 'focus')
     
     def blur(self) -> None:
         """Blur the element"""
-        pass
+        dispatch_event(self, 'blur')
     
     def click(self) -> None:
         """Click the element"""
-        pass
+        dispatch_event(self, 'click')
     
     def scroll_into_view(self) -> None:
         """Scroll element into view"""
@@ -350,6 +354,17 @@ def remove_event_listener(
 
 def dispatch_event(element: Element, event_type: str, event_data: Optional[Dict] = None) -> None:
     """Dispatch an event on an element"""
+    from .events import create_synthetic_event
+
+    payload = dict(event_data or {})
+    payload.setdefault('type', event_type)
+    payload.setdefault('target', {
+        'value': element.attributes.get('value', ''),
+        'checked': element.attributes.get('checked', False),
+    })
+    event = create_synthetic_event(event_type, payload)
+    event.target = element
+    event.current_target = element
     if event_type in element._event_listeners:
-        for listener in element._event_listeners[event_type]:
-            listener(event_data or {})
+        for listener in list(element._event_listeners[event_type]):
+            listener(event)

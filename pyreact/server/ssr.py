@@ -5,7 +5,8 @@ Server-Side Rendering Module
 This module implements server-side rendering for PyReact components.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from contextvars import ContextVar
+from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union
 from ..core.element import VNode
 from ..core.component import Component
 
@@ -24,6 +25,7 @@ HTML_ELEMENTS = {
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'footer',
     'nav', 'main', 'section', 'article', 'aside', 'script', 'style',
 }
+_ssr_component_counter: ContextVar[int] = ContextVar('pyreact_ssr_component_counter', default=0)
 
 
 def render_to_string(element: Union[VNode, str, None]) -> str:
@@ -48,7 +50,11 @@ def render_to_string(element: Union[VNode, str, None]) -> str:
     if isinstance(element, str):
         return escape_html(element)
     
-    return _render_node(element, include_data_attrs=True)
+    token = _ssr_component_counter.set(0)
+    try:
+        return _render_node(element, include_data_attrs=True)
+    finally:
+        _ssr_component_counter.reset(token)
 
 
 def render_to_static_markup(element: Union[VNode, str, None]) -> str:
@@ -73,7 +79,11 @@ def render_to_static_markup(element: Union[VNode, str, None]) -> str:
     if isinstance(element, str):
         return escape_html(element)
     
-    return _render_node(element, include_data_attrs=False)
+    token = _ssr_component_counter.set(0)
+    try:
+        return _render_node(element, include_data_attrs=False)
+    finally:
+        _ssr_component_counter.reset(token)
 
 
 def _render_node(node: Union[VNode, str], include_data_attrs: bool = True) -> str:
@@ -101,7 +111,13 @@ def _render_node(node: Union[VNode, str], include_data_attrs: bool = True) -> st
     tag = node.type
     attrs = _render_attrs(node.props, include_data_attrs)
     # Hydration needs a marker on the rendered root, not on every descendant.
-    children = ''.join(_render_node(child, False) for child in node.children)
+    raw_html = node.props.get('dangerouslySetInnerHTML')
+    if raw_html is not None:
+        if not isinstance(raw_html, dict) or '__html' not in raw_html:
+            raise ValueError('dangerouslySetInnerHTML requires a {"__html": value} mapping')
+        children = str(raw_html['__html'])
+    else:
+        children = ''.join(_render_node(child, False) for child in node.children)
     
     if tag in VOID_ELEMENTS:
         return f'<{tag}{attrs} />'
@@ -120,21 +136,68 @@ def _render_component(vnode: VNode, include_data_attrs: bool) -> str:
     Returns:
         str: HTML string
     """
+    from ..core.hooks import _reset_hook_index, _set_current_component
+
     component_type = vnode.type
-    
-    # Instantiate component
     if isinstance(component_type, type):
-        # Class component
         component = component_type(vnode.props)
-        rendered = component.render()
     else:
-        # Function component
-        rendered = component_type(vnode.props)
-    
-    if rendered is None:
-        return ''
-    
-    return _render_node(rendered, include_data_attrs)
+        component = _SSRFunctionComponent(component_type, vnode.props)
+    component._hooks = []
+    component._hook_index = 0
+    component._tree_id = _ssr_component_counter.get()
+    _ssr_component_counter.set(component._tree_id + 1)
+    component._is_rendering = True
+
+    provider_context = getattr(component_type, '_pyreact_context_provider', None)
+    provider_id = id(component)
+    if provider_context is not None:
+        provider_context._push_provider(
+            provider_id, vnode.props.get('value', provider_context._default_value)
+        )
+
+    _set_current_component(component)
+    _reset_hook_index()
+    try:
+        rendered = component.render()
+    finally:
+        component._is_rendering = False
+        _set_current_component(None)
+
+    if isinstance(rendered, list):
+        if len(rendered) == 1:
+            rendered = rendered[0]
+        elif not rendered:
+            rendered = None
+        else:
+            if provider_context is not None:
+                provider_context._pop_provider(provider_id)
+            raise TypeError('Components must return one VNode during SSR')
+
+    try:
+        if rendered is None:
+            return ''
+        try:
+            return _render_node(rendered, include_data_attrs)
+        except Exception as error:
+            derived = component.get_derived_state_from_error(error) if hasattr(
+                component, 'get_derived_state_from_error'
+            ) else None
+            if derived is None:
+                raise
+            component.state = {**component.state, **derived}
+            if hasattr(component, 'component_did_catch'):
+                component.component_did_catch(error, {'componentStack': repr(rendered)})
+            _set_current_component(component)
+            _reset_hook_index()
+            try:
+                fallback = component.render()
+            finally:
+                _set_current_component(None)
+            return '' if fallback is None else _render_node(fallback, include_data_attrs)
+    finally:
+        if provider_context is not None:
+            provider_context._pop_provider(provider_id)
 
 
 def _render_attrs(props: Dict[str, Any], include_data_attrs: bool) -> str:
@@ -163,7 +226,7 @@ def _render_attrs(props: Dict[str, Any], include_data_attrs: bool) -> str:
         if name == 'style':
             style_str = _render_style(value)
             if style_str:
-                result.append(f'style="{style_str}"')
+                result.append(f'style="{escape_html(style_str)}"')
             continue
         
         # Skip dangerouslySetInnerHTML
@@ -264,7 +327,31 @@ def escape_html(text: str) -> str:
     )
 
 
-def render_to_node_stream(element: VNode) -> str:
+def _stream_node(node: Union[VNode, str, None], include_data_attrs: bool = True) -> Iterator[str]:
+    """Yield HTML chunks while preserving component and escaping semantics."""
+    if node is None:
+        return
+    if isinstance(node, str) or callable(node.type):
+        yield _render_node(node, include_data_attrs)
+        return
+    attrs = _render_attrs(node.props, include_data_attrs)
+    yield f'<{node.type}{attrs}'
+    if node.type in VOID_ELEMENTS:
+        yield ' />'
+        return
+    yield '>'
+    raw_html = node.props.get('dangerouslySetInnerHTML')
+    if raw_html is not None:
+        if not isinstance(raw_html, dict) or '__html' not in raw_html:
+            raise ValueError('dangerouslySetInnerHTML requires a {"__html": value} mapping')
+        yield str(raw_html['__html'])
+    else:
+        for child in node.children:
+            yield from _stream_node(child, False)
+    yield f'</{node.type}>'
+
+
+def render_to_node_stream(element: VNode) -> Iterator[str]:
     """
     Render element to a stream (simplified version)
     
@@ -276,10 +363,10 @@ def render_to_node_stream(element: VNode) -> str:
     Returns:
         str: HTML string (simplified)
     """
-    return render_to_string(element)
+    return _stream_node(element, True)
 
 
-def render_to_static_node_stream(element: VNode) -> str:
+def render_to_static_node_stream(element: VNode) -> Iterator[str]:
     """
     Render element to a static stream (simplified version)
     
@@ -291,7 +378,30 @@ def render_to_static_node_stream(element: VNode) -> str:
     Returns:
         str: HTML string (simplified)
     """
-    return render_to_static_markup(element)
+    return _stream_node(element, False)
+
+
+async def render_to_async_stream(element: VNode, static: bool = False) -> AsyncIterator[str]:
+    """Asynchronously yield SSR chunks for ASGI and other async servers."""
+    for chunk in _stream_node(element, not static):
+        yield chunk
+
+
+class _SSRFunctionComponent:
+    def __init__(self, render_fn: Any, props: Dict[str, Any]):
+        self.render_fn = render_fn
+        self.props = props
+        self.state: Dict[str, Any] = {}
+        self._hooks: List[Dict[str, Any]] = []
+        self._hook_index = 0
+        self._is_rendering = False
+
+    def render(self) -> Any:
+        return self.render_fn(self.props)
+
+    def _schedule_update(self) -> None:
+        # State updates during SSR are intentionally not committed recursively.
+        return None
 
 
 class SSRContext:

@@ -59,18 +59,23 @@ def test_real_user_flow(app_url):
         try:
             page.goto(app_url, wait_until="networkidle")
             assert page.title() == "Orbit Board · PyReact"
-            assert page.locator(".task-card").count() == 3
-            assert page.get_by_test_id("stat-progresso").locator(".stat-value").text_content() == "33%"
+            playwright.expect(page.locator(".task-card")).to_have_count(3)
+            playwright.expect(
+                page.get_by_test_id("stat-progresso").locator(".stat-card__value")
+            ).to_have_text("33%")
 
-            page.get_by_label("Criar uma nova tarefa").fill("Publicar release 1.1")
-            page.get_by_role("button", name="Adicionar").click()
-            assert page.get_by_text("Publicar release 1.1").is_visible()
-            assert page.get_by_test_id("stat-total").locator(".stat-value").text_content() == "4"
+            page.get_by_test_id("add-demo-task").click()
+            playwright.expect(page.get_by_text("Preparar experimento de aquisição")).to_be_visible()
+            playwright.expect(
+                page.get_by_test_id("stat-total").locator(".stat-card__value")
+            ).to_have_text("4")
 
-            page.get_by_role("button", name="Concluir Definir métricas do onboarding").click()
-            assert page.get_by_test_id("stat-progresso").locator(".stat-value").text_content() == "50%"
+            page.get_by_test_id("toggle-2").click()
+            playwright.expect(
+                page.get_by_test_id("stat-progresso").locator(".stat-card__value")
+            ).to_have_text("50%")
 
-            page.get_by_role("button", name="Concluídas", exact=True).click()
-            assert page.locator(".task-card").count() == 2
+            page.get_by_test_id("filter-done").click()
+            playwright.expect(page.locator(".task-card")).to_have_count(2)
         finally:
             browser.close()

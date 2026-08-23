@@ -30,11 +30,11 @@ from .hooks import (
     use_deferred_value,
 )
 from .context import create_context
-from .refs import create_ref, forward_ref
+from .refs import create_callback_ref, create_ref, forward_ref
 from .portal import create_portal
-from .memo import memo, lazy
+from .memo import Suspense, lazy, memo
 from .error_boundary import ErrorBoundary
-from .scheduler import Scheduler
+from .scheduler import Priority, Scheduler, batch_updates
 
 __all__ = [
     # Element
@@ -67,14 +67,18 @@ __all__ = [
     'create_context',
     # Refs
     'create_ref',
+    'create_callback_ref',
     'forward_ref',
     # Portal
     'create_portal',
     # Memo
     'memo',
     'lazy',
+    'Suspense',
     # Error Boundary
     'ErrorBoundary',
     # Scheduler
     'Scheduler',
+    'Priority',
+    'batch_updates',
 ]

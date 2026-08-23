@@ -212,8 +212,14 @@ class SyntheticFormEvent(SyntheticEvent):
     
     def __init__(self, native_event: Optional[Dict] = None):
         super().__init__(native_event)
-        self.value = self.native_event.get('target', {}).get('value', '')
-        self.checked = self.native_event.get('target', {}).get('checked', False)
+        target = self.native_event.get('target', {})
+        if isinstance(target, dict):
+            self.value = target.get('value', '')
+            self.checked = target.get('checked', False)
+        else:
+            attributes = getattr(target, 'attributes', {})
+            self.value = attributes.get('value', '')
+            self.checked = attributes.get('checked', False)
 
 
 class SyntheticTouchEvent(SyntheticEvent):

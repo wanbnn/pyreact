@@ -36,11 +36,16 @@ class Root:
         self._is_rendering = True
         try:
             if self._current_vnode is None:
-                if not self.options.get('hydrate'):
+                if self.options.get('hydrate') and self.container.first_child:
+                    if len(self.container.child_nodes) != 1:
+                        from ..server.hydration import HydrationMismatchError
+                        raise HydrationMismatchError('Hydration root must contain exactly one node')
+                    self._reconciler.hydrate_dom(element, self.container.first_child)
+                else:
                     self._clear_container()
-                
-                dom = self._reconciler.create_dom(element)
-                self.container.append_child(dom)
+                    dom = self._reconciler.create_dom(element)
+                    self.container.append_child(dom)
+                    self._reconciler.flush_detached_updates()
             else:
                 self._reconciler.diff(
                     self._current_vnode,
@@ -95,9 +100,8 @@ def render(element: VNode, container: Any) -> Root:
 
 def hydrate(element: VNode, container: Any) -> Root:
     """Hydrate existing HTML with PyReact interactivity"""
-    root = create_root(container, {'hydrate': True})
-    root.render(element)
-    return root
+    from ..server.hydration import hydrate as hydrate_tree
+    return hydrate_tree(element, container)
 
 
 def unmount_component_at_node(container: Any) -> bool:

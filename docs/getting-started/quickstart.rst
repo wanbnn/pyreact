@@ -46,7 +46,7 @@ Create a simple counter component:
 .. code-block:: python
    :caption: src/components/Counter.py
 
-   from pyreact import element, Component
+   from pyreact import h, Component
 
    class Counter(Component):
        def __init__(self, props):
@@ -54,16 +54,16 @@ Create a simple counter component:
            self.state = {'count': 0}
        
        def increment(self, event):
-           self.setState({'count': self.state['count'] + 1})
+           self.set_state({'count': self.state['count'] + 1})
        
        def decrement(self, event):
-           self.setState({'count': self.state['count'] - 1})
+           self.set_state({'count': self.state['count'] - 1})
        
        def render(self):
-           return element('div', {'class': 'counter'},
-               element('h2', {}, f'Count: {self.state["count"]}'),
-               element('button', {'onClick': self.decrement}, '-'),
-               element('button', {'onClick': self.increment}, '+')
+           return h('div', {'class': 'counter'},
+               h('h2', {}, f'Count: {self.state["count"]}'),
+               h('button', {'onClick': self.decrement}, '-'),
+               h('button', {'onClick': self.increment}, '+')
            )
 
 Use the Component
@@ -74,16 +74,17 @@ Import and use your component:
 .. code-block:: python
    :caption: src/index.py
 
-   from pyreact import element, render
+   from pyreact import h
    from components.Counter import Counter
 
-   def App():
-       return element('div', {'class': 'app'},
-           element('h1', {}, 'My First PyReact App'),
-           element(Counter, {})
+   def App(props):
+       return h('div', {'class': 'app'},
+           h('h1', {}, 'My First PyReact App'),
+           h(Counter, {})
        )
 
-   render(App(), root='root')
+The development runtime discovers ``App`` in ``src/index.py``. No manual DOM
+root or browser-side bootstrap is required.
 
 Build for Production
 --------------------
@@ -95,6 +96,8 @@ Build your application for production:
    pyreact-framework build
 
 The build output will be in the ``dist/`` directory.
+
+Run the production launcher with ``cd dist && python serve.py``.
 
 Next Steps
 ----------

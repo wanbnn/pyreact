@@ -55,7 +55,7 @@ Use props:
 
 .. code-block:: python
 
-   element(MyComponent, {'name': 'John', 'age': 30})
+   h(MyComponent, {'name': 'John', 'age': 30})
 
 **How do I handle events?**
 
@@ -63,18 +63,18 @@ Pass event handlers as props:
 
 .. code-block:: python
 
-   element('button', {'onClick': lambda e: print('Clicked')}, 'Click me')
+   h('button', {'onClick': lambda e: print('Clicked')}, 'Click me')
 
 State Management
 ----------------
 
 **How do I update state?**
 
-Use ``setState()`` in class components:
+Use ``set_state()`` in class components:
 
 .. code-block:: python
 
-   self.setState({'count': self.state['count'] + 1})
+   self.set_state({'count': self.state['count'] + 1})
 
 Or ``useState`` hook in function components:
 
@@ -85,7 +85,7 @@ Or ``useState`` hook in function components:
 
 **Why isn't my state updating?**
 
-Make sure you're using ``setState()`` or the setter function, not modifying state directly:
+Make sure you're using ``set_state()`` or the setter function, not modifying state directly:
 
 .. code-block:: python
    :caption: ❌ Wrong
@@ -95,7 +95,7 @@ Make sure you're using ``setState()`` or the setter function, not modifying stat
 .. code-block:: python
    :caption: ✅ Correct
 
-   self.setState({'count': self.state['count'] + 1})
+   self.set_state({'count': self.state['count'] + 1})
 
 **How do I share state between components?**
 
@@ -116,7 +116,7 @@ Or use inline styles:
 
 .. code-block:: python
 
-   element('div', {'style': {'color': 'red'}})
+   h('div', {'style': {'color': 'red'}})
 
 **Does PyReact support CSS Modules?**
 
@@ -136,22 +136,20 @@ Use the built-in router:
 
 .. code-block:: python
 
-   from pyreact.router import Router, Route
-   
-   element(Router, {},
-       element(Route, {'path': '/', 'component': Home}),
-       element(Route, {'path': '/about', 'component': About})
-   )
+   from pyreact import Router, h, route
+
+   routes = [route('/', Home), route('/about', About)]
+   h(Router, {'routes': routes})
 
 **How do I get route parameters?**
 
-Use ``useParams``:
+Use ``use_params``:
 
 .. code-block:: python
 
-   from pyreact.router import useParams
+   from pyreact import use_params
    
-   params = useParams()
+   params = use_params()
    user_id = params['id']
 
 Testing
@@ -165,7 +163,7 @@ Use pytest with PyReact's testing utilities:
 
    from pyreact.testing import render, fireEvent
    
-   result = render(element(Button, {}))
+   result = render(h(Button, {}))
    assert result.text == 'Click me'
 
 **How do I test async code?**

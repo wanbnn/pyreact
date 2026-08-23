@@ -57,21 +57,24 @@ def styled(
     
     def styled_component(props: Dict[str, Any]) -> Any:
         """Render styled component"""
-        from .element import VNode
+        from ..core.element import VNode
         
         # Merge className
+        props = props.copy()
+        children = props.pop('children', [])
         existing_class = props.get('className', '')
         new_class = f"{class_name} {existing_class}".strip()
         
         # Create element
         if callable(element_type):
             # It's a component
-            return element_type({**props, 'className': new_class})
+            return element_type({**props, 'className': new_class, 'children': children})
         else:
             # It's an HTML element
             return VNode(
                 element_type,
-                {**props, 'className': new_class}
+                {**props, 'className': new_class},
+                children
             )
     
     styled_component._styled_class = class_name
@@ -182,36 +185,19 @@ def _process_styles(styles: str, class_name: str) -> str:
     Returns:
         str: Processed CSS
     """
-    # Replace & with class selector
-    processed = styles.replace('&', f'.{class_name}')
-    
-    # Handle nested selectors
-    lines = []
-    current_selector = f'.{class_name}'
-    indent_level = 0
-    
-    for line in processed.split('\n'):
-        stripped = line.strip()
-        
-        if not stripped:
-            continue
-        
-        # Handle opening brace
-        if '{' in stripped:
-            if indent_level == 0:
-                lines.append(f'.{class_name} {{')
-            else:
-                lines.append(f'  {stripped}')
-            indent_level += 1
-        # Handle closing brace
-        elif '}' in stripped:
-            indent_level -= 1
-            lines.append('}')
-        # Handle properties
-        else:
-            lines.append(f'  {stripped}')
-    
-    return '\n'.join(lines)
+    nested_pattern = re.compile(r'(&[^{}]*)\{([^{}]*)\}', re.DOTALL)
+    nested = []
+
+    def collect(match: re.Match) -> str:
+        selector = match.group(1).replace('&', f'.{class_name}').strip()
+        body = match.group(2).strip()
+        nested.append(f'{selector} {{ {body} }}')
+        return ''
+
+    base = nested_pattern.sub(collect, styles).strip()
+    blocks = [f'.{class_name} {{ {base} }}'] if base else []
+    blocks.extend(nested)
+    return '\n'.join(blocks)
 
 
 def _register_styles(
@@ -234,6 +220,7 @@ def _register_styles(
         'is_global': is_global,
         'is_keyframes': is_keyframes
     }
+    _style_manager.add_style(class_name, styles)
 
 
 def get_all_styles() -> str:

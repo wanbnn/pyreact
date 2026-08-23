@@ -5,7 +5,12 @@ Hydration Module
 This module implements client-side hydration for server-rendered HTML.
 """
 
+from contextvars import ContextVar
 from typing import Any, Dict, Optional
+
+
+_is_hydrating: ContextVar[bool] = ContextVar('pyreact_is_hydrating', default=False)
+_suppress_warning: ContextVar[bool] = ContextVar('pyreact_suppress_hydration', default=False)
 
 
 class HydrationMismatchError(Exception):
@@ -46,11 +51,15 @@ def hydrate(element: Any, container: Any) -> Any:
     Raises:
         HydrationMismatchError: If server HTML doesn't match client
     """
-    from .core.renderer import create_root
+    from ..core.renderer import create_root
     
     # Create root with hydration mode
-    root = create_root(container, {'hydrate': True})
-    root.render(element)
+    token = _is_hydrating.set(True)
+    try:
+        root = create_root(container, {'hydrate': True})
+        root.render(element)
+    finally:
+        _is_hydrating.reset(token)
     
     return root
 
@@ -113,19 +122,12 @@ def check_hydration_mismatch(
         HydrationMismatchError if mismatch, None otherwise
     """
     # Check node type
-    if type(server_node) != type(client_node):
-        return HydrationMismatchError(
-            f"Node type mismatch at {path}: "
-            f"server={type(server_node).__name__}, "
-            f"client={type(client_node).__name__}"
-        )
-    
     # Check tag name for elements
-    if hasattr(server_node, 'tagName') and hasattr(client_node, 'type'):
-        if server_node.tagName.lower() != client_node.type.lower():
+    if hasattr(server_node, 'tag_name') and hasattr(client_node, 'type'):
+        if server_node.tag_name.lower() != client_node.type.lower():
             return HydrationMismatchError(
                 f"Tag mismatch at {path}: "
-                f"server={server_node.tagName}, "
+                f"server={server_node.tag_name}, "
                 f"client={client_node.type}"
             )
     
@@ -147,8 +149,7 @@ def suppress_hydration_warning() -> None:
     
     Use when you know server and client will differ intentionally.
     """
-    # In a real implementation, this would set a flag on the current component
-    pass
+    _suppress_warning.set(True)
 
 
 def use_hydration() -> Dict[str, bool]:
@@ -158,10 +159,10 @@ def use_hydration() -> Dict[str, bool]:
     Returns:
         dict: {'is_hydrating': bool, 'is_hydrated': bool}
     """
-    # Simplified implementation
+    hydrating = _is_hydrating.get()
     return {
-        'is_hydrating': False,
-        'is_hydrated': True
+        'is_hydrating': hydrating,
+        'is_hydrated': not hydrating,
     }
 
 

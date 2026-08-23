@@ -5,6 +5,25 @@ Changelog
 
 All notable changes to PyReact Framework are documented here.
 
+Version 1.1.0 (2026-08-23)
+--------------------------
+
+Added
+~~~~~
+
+- Server-driven browser runtime with isolated sessions and ordered events
+- Built-in routing, History API navigation, and route hooks
+- Hook-aware SSR, real hydration, and sync/async streaming APIs
+- Hot reload, production launcher, and typed-package marker
+
+Changed
+~~~~~~~
+
+- Integrated advanced context, refs, memo, portals, error boundaries, and styles
+- Added keyed reconciliation and complete effect/lifecycle commit semantics
+- Raised supported Python versions to 3.10–3.13
+- Enforced at least 95% line coverage in CI
+
 Version 1.0.5 (2026-07-24)
 ---------------------------
 

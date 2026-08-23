@@ -5,9 +5,9 @@ CSS Module Module
 Support for CSS modules in PyReact.
 """
 
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Dict, Optional
 import re
-import os
 
 
 def css_module(file_path: str) -> Dict[str, str]:
@@ -38,22 +38,18 @@ def css_module(file_path: str) -> Dict[str, str]:
     css_content = _read_css_file(file_path)
     
     # Extract class names and transform
-    class_map = {}
-    processed_css = []
-    
-    for line in css_content.split('\n'):
-        # Find class definitions
-        match = re.match(r'\.([a-zA-Z_-][a-zA-Z0-9_-]*)\s*\{', line)
-        if match:
-            local_name = match.group(1)
-            unique_name = f"{module_id}__{local_name}"
-            class_map[local_name] = unique_name
-            processed_css.append(line.replace(f'.{local_name}', f'.{unique_name}'))
-        else:
-            processed_css.append(line)
+    class_map: Dict[str, str] = {}
+    pattern = re.compile(r'\.([a-zA-Z_-][a-zA-Z0-9_-]*)')
+
+    def replace_class(match: re.Match) -> str:
+        local_name = match.group(1)
+        unique_name = class_map.setdefault(local_name, f'{module_id}__{local_name}')
+        return f'.{unique_name}'
+
+    processed_css = pattern.sub(replace_class, css_content)
     
     # Register processed CSS
-    _register_module_css(module_id, '\n'.join(processed_css))
+    _register_module_css(module_id, processed_css)
     
     return class_map
 
@@ -107,16 +103,8 @@ def _read_css_file(file_path: str) -> str:
     Returns:
         str: CSS content
     """
-    # In a real implementation, this would read from filesystem
-    # For now, return empty string
-    try:
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return f.read()
-    except Exception:
-        pass
-    
-    return ''
+    path = Path(file_path)
+    return path.read_text(encoding='utf-8') if path.is_file() else ''
 
 
 def _register_module_css(module_id: str, css: str) -> None:

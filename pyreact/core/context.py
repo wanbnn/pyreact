@@ -27,6 +27,26 @@ class Context:
         self._default_value = default_value
         self._providers: Dict[int, Any] = {}
         self._provider_stack: List[int] = []
+
+        context = self
+
+        def provider(props: Dict[str, Any]) -> Any:
+            children = props.get('children', [])
+            if not children:
+                return None
+            if len(children) != 1:
+                raise TypeError('Context.Provider requires a single root child')
+            return children[0]
+
+        provider._pyreact_context_provider = context  # type: ignore[attr-defined]
+        self.Provider = provider
+
+        def consumer(props: Dict[str, Any]) -> Any:
+            children = props.get('children', [])
+            render_child = children[0] if children else None
+            return render_child(context._get_value()) if callable(render_child) else render_child
+
+        self.Consumer = consumer
     
     def _get_value(self) -> Any:
         """Get current context value"""
@@ -47,58 +67,6 @@ class Context:
         if provider_id in self._provider_stack:
             self._provider_stack.remove(provider_id)
     
-    class Provider:
-        """
-        Provider component for context
-        
-        Example:
-            h(ThemeContext.Provider, {'value': 'dark'},
-                h(App, None)
-            )
-        """
-        
-        def __init__(self, context: 'Context', props: Dict[str, Any]):
-            self.context = context
-            self.props = props
-            self._id = id(self)
-            self._children = props.get('children', [])
-        
-        def render(self) -> Any:
-            """Provider doesn't render anything, just provides value"""
-            return self._children
-        
-        def __enter__(self):
-            """Context manager support"""
-            value = self.props.get('value', self.context._default_value)
-            self.context._push_provider(self._id, value)
-            return self
-        
-        def __exit__(self, *args):
-            """Context manager support"""
-            self.context._pop_provider(self._id)
-    
-    class Consumer:
-        """
-        Consumer component for context
-        
-        Example:
-            h(ThemeContext.Consumer, None,
-                lambda theme: h('div', None, f"Theme: {theme}")
-            )
-        """
-        
-        def __init__(self, context: 'Context', props: Dict[str, Any]):
-            self.context = context
-            self.props = props
-        
-        def render(self) -> Any:
-            """Call children function with context value"""
-            children = self.props.get('children')
-            if callable(children):
-                return children(self.context._get_value())
-            return children
-
-
 def create_context(default_value: Any = None) -> Context:
     """
     Create a new Context object
