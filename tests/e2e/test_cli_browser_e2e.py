@@ -147,7 +147,15 @@ def test_counter_user_flow_in_browser(dev_server: str):
             decrement = page.get_by_role("button", name="Decrement counter")
 
             playwright.expect(counter).to_have_text("Count: 0")
+            page.evaluate(
+                "window.__pyreactIncrement = document.querySelector('button[aria-label=\"Increment counter\"]')"
+            )
             increment.click()
+            playwright.expect(counter).to_have_text("Count: 1")
+            assert page.evaluate(
+                "window.__pyreactIncrement === document.querySelector('button[aria-label=\"Increment counter\"]')"
+            )
+
             increment.click()
             decrement.click()
             playwright.expect(counter).to_have_text("Count: 1")
