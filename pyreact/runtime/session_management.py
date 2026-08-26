@@ -1,20 +1,23 @@
-"""Bounded session lifecycle for the public PyReact live runtime."""
+"""Bounded session and request lifecycle for the public PyReact live runtime."""
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 import secrets
 import threading
 import time
 from typing import Dict, Optional
+from urllib.parse import urlsplit
 
 from .server import LiveApplication as _BaseLiveApplication
-from .server import LiveSession, make_handler
+from .server import LiveSession, make_handler as _base_make_handler
 
 
 DEFAULT_SESSION_TTL = 30 * 60.0
 DEFAULT_MAX_SESSIONS = 1024
+DEFAULT_MAX_EVENT_BODY_BYTES = 64 * 1024
 
 
 class LiveApplication(_BaseLiveApplication):
@@ -84,6 +87,58 @@ class LiveApplication(_BaseLiveApplication):
             return session_id, self.sessions[session_id]
 
 
+def make_handler(
+    application: LiveApplication,
+    title: str = "PyReact App",
+    *,
+    max_event_body_bytes: int = DEFAULT_MAX_EVENT_BODY_BYTES,
+):
+    """Create a runtime handler that bounds browser event request bodies.
+
+    The lower-level live server historically trusted ``Content-Length`` and
+    read that many bytes into memory. The public runtime rejects oversized or
+    malformed lengths before delegating to the event parser, keeping memory
+    consumed by each event request bounded independently of client input.
+    """
+    if max_event_body_bytes < 1:
+        raise ValueError("max_event_body_bytes must be at least one")
+
+    base_handler = _base_make_handler(application, title)
+
+    class BoundedEventHandler(base_handler):
+        def do_POST(self) -> None:
+            if urlsplit(self.path).path == "/__pyreact/event":
+                raw_length = self.headers.get("Content-Length")
+                try:
+                    length = int(raw_length or "0")
+                except ValueError:
+                    self._json(
+                        {"error": "Invalid Content-Length"},
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                    return
+                if length < 0:
+                    self._json(
+                        {"error": "Invalid Content-Length"},
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                    return
+                if length > max_event_body_bytes:
+                    self._json(
+                        {
+                            "error": (
+                                "Event payload exceeds the configured limit of "
+                                f"{max_event_body_bytes} bytes"
+                            )
+                        },
+                        HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    )
+                    return
+            super().do_POST()
+
+    return BoundedEventHandler
+
+
 def serve(
     entry: str = "src/index.py",
     host: str = "127.0.0.1",
@@ -93,15 +148,23 @@ def serve(
     *,
     session_ttl: float = DEFAULT_SESSION_TTL,
     max_sessions: int = DEFAULT_MAX_SESSIONS,
+    max_event_body_bytes: int = DEFAULT_MAX_EVENT_BODY_BYTES,
 ) -> None:
-    """Serve a live PyReact app with bounded session retention."""
+    """Serve a live PyReact app with bounded sessions and event requests."""
     application = LiveApplication(
         Path(entry),
         Path(public_dir),
         session_ttl=session_ttl,
         max_sessions=max_sessions,
     )
-    server = ThreadingHTTPServer((host, port), make_handler(application, title))
+    server = ThreadingHTTPServer(
+        (host, port),
+        make_handler(
+            application,
+            title,
+            max_event_body_bytes=max_event_body_bytes,
+        ),
+    )
     print(f"[OK] PyReact live server running at http://{host}:{port}", flush=True)
     try:
         server.serve_forever()
