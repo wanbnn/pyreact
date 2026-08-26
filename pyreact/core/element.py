@@ -103,9 +103,7 @@ def h(
         >>> h(Counter, {'initialCount': 0})
         VNode(type='Counter', key=None, children=0)
     """
-    # Flatten positional children (handle nested lists). Positional children
-    # intentionally take precedence over an explicit component ``children`` prop,
-    # matching createElement-style composition semantics.
+    # Flatten children (handle nested lists)
     flat_children: List[Union[VNode, str]] = []
     for child in children:
         if isinstance(child, (list, tuple)):
@@ -170,7 +168,7 @@ def _flatten_children(
 def create_element(
     type: Union[str, Callable, type],
     props: Optional[Dict[str, Any]] = None,
-    *children: Union['VNode', str, List[Union['VNode', str]]]
+    *children: Union[VNode, str, List[Union[VNode, str]]]
 ) -> VNode:
     """
     Alias for h() function
@@ -179,8 +177,8 @@ def create_element(
     
     Args:
         type: Element type
-        props: Properties/attributes (optional)
-        *children: Child elements (VNodes, strings, or lists)
+        props: Properties/attributes
+        *children: Child elements
     
     Returns:
         VNode: The created virtual node
@@ -196,7 +194,7 @@ def is_valid_element(element: Any) -> bool:
         element: Value to check
     
     Returns:
-        bool: True if value is a valid VNode
+        bool: True if element is a valid VNode
     """
     return isinstance(element, VNode)
 
@@ -204,40 +202,47 @@ def is_valid_element(element: Any) -> bool:
 def clone_element(
     element: VNode,
     props: Optional[Dict[str, Any]] = None,
-    *children: Union['VNode', str, List[Union['VNode', str]]]
+    *children: Union[VNode, str, List[Union[VNode, str]]]
 ) -> VNode:
     """
-    Clone an existing VNode with optional prop/child overrides.
-
-    Positional children override both the original children and an explicit
-    ``children`` prop. When no positional children are supplied, an explicit
-    ``children`` prop is normalized and becomes the cloned VNode children.
+    Clone and return a new VNode with optional new props and children
+    
+    Args:
+        element: VNode to clone
+        props: New props to merge (optional)
+        *children: New children (optional)
+    
+    Returns:
+        VNode: Cloned element
     """
     if not is_valid_element(element):
-        raise ValueError('clone_element expects a valid VNode')
-
+        raise ValueError('clone_element requires a valid VNode')
+    
+    # Merge props
     new_props = element.props.copy()
     explicit_children = props is not None and 'children' in props
     if props:
         new_props.update(props)
-
+    
+    # Use positional children if provided; otherwise an explicit component
+    # children prop overrides the original VNode children.
     if children:
         new_children = _flatten_children(list(children))
     elif explicit_children:
         new_children = _flatten_children([new_props.get('children')])
     else:
         new_children = element.children.copy()
-
     if callable(element.type) and not isinstance(element.type, str):
         new_props['children'] = new_children
 
-    key = new_props.pop('key', element.key)
-    ref = new_props.pop('ref', element.ref)
-
+    # key/ref are VNode metadata, not ordinary component props.
+    new_key = new_props.pop('key', element.key)
+    new_ref = new_props.pop('ref', element.ref)
+    
     return VNode(
         type=element.type,
         props=new_props,
         children=new_children,
-        key=key,
-        ref=ref,
+        key=new_key,
+        ref=new_ref
     )
