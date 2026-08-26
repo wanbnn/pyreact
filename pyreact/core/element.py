@@ -129,6 +129,8 @@ def h(
     key = props.pop('key', None)
     ref = props.pop('ref', None)
     if callable(type) and not isinstance(type, str):
+        if not children and 'children' in props:
+            flat_children = _flatten_children([props['children']])
         props['children'] = flat_children
     
     return VNode(
@@ -218,11 +220,18 @@ def clone_element(
     
     # Merge props
     new_props = element.props.copy()
+    explicit_children = props is not None and 'children' in props
     if props:
         new_props.update(props)
     
-    # Use new children if provided, otherwise keep original
-    new_children = _flatten_children(list(children)) if children else element.children.copy()
+    # Use positional children if provided; otherwise an explicit component
+    # children prop overrides the original VNode children.
+    if children:
+        new_children = _flatten_children(list(children))
+    elif explicit_children:
+        new_children = _flatten_children([new_props.get('children')])
+    else:
+        new_children = element.children.copy()
     if callable(element.type) and not isinstance(element.type, str):
         new_props['children'] = new_children
 
