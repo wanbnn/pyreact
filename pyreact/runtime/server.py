@@ -175,7 +175,94 @@ _BROWSER_RUNTIME = r'''(() => {
   const root = document.getElementById('root');
   let version = Number(document.documentElement.dataset.pyreactVersion || '1');
   let pending = Promise.resolve();
-  const apply = (payload) => { root.innerHTML = payload.html; };
+
+  const cloneInto = (parent, nextNode, before = null) => {
+    const clone = nextNode.cloneNode(true);
+    parent.insertBefore(clone, before);
+    return clone;
+  };
+
+  const syncFormState = (current, next) => {
+    if (current instanceof HTMLInputElement && next instanceof HTMLInputElement) {
+      if (next.hasAttribute('value') && current.value !== next.value) current.value = next.value;
+      if (current.checked !== next.checked) current.checked = next.checked;
+    } else if (current instanceof HTMLTextAreaElement && next instanceof HTMLTextAreaElement) {
+      if (current.value !== next.value) current.value = next.value;
+    } else if (current instanceof HTMLSelectElement && next instanceof HTMLSelectElement) {
+      if (current.value !== next.value) current.value = next.value;
+    }
+  };
+
+  const syncAttributes = (current, next) => {
+    for (const attribute of Array.from(current.attributes)) {
+      if (!next.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
+    }
+    for (const attribute of Array.from(next.attributes)) {
+      if (current.getAttribute(attribute.name) !== attribute.value) {
+        current.setAttribute(attribute.name, attribute.value);
+      }
+    }
+    syncFormState(current, next);
+  };
+
+  const patchNode = (current, next) => {
+    if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName) {
+      const replacement = next.cloneNode(true);
+      current.replaceWith(replacement);
+      return replacement;
+    }
+
+    if (current.nodeType === Node.TEXT_NODE || current.nodeType === Node.COMMENT_NODE) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      return current;
+    }
+
+    if (!(current instanceof Element) || !(next instanceof Element)) return current;
+    syncAttributes(current, next);
+
+    let index = 0;
+    while (index < next.childNodes.length || index < current.childNodes.length) {
+      const currentChild = current.childNodes[index];
+      const nextChild = next.childNodes[index];
+      if (!nextChild && currentChild) {
+        currentChild.remove();
+        continue;
+      }
+      if (nextChild && !currentChild) {
+        cloneInto(current, nextChild);
+        index += 1;
+        continue;
+      }
+      patchNode(currentChild, nextChild);
+      index += 1;
+    }
+    return current;
+  };
+
+  const apply = (payload) => {
+    if (typeof payload.html !== 'string') return;
+    const template = document.createElement('template');
+    template.innerHTML = payload.html;
+    const nextRoot = template.content;
+
+    let index = 0;
+    while (index < nextRoot.childNodes.length || index < root.childNodes.length) {
+      const currentChild = root.childNodes[index];
+      const nextChild = nextRoot.childNodes[index];
+      if (!nextChild && currentChild) {
+        currentChild.remove();
+        continue;
+      }
+      if (nextChild && !currentChild) {
+        cloneInto(root, nextChild);
+        index += 1;
+        continue;
+      }
+      patchNode(currentChild, nextChild);
+      index += 1;
+    }
+  };
+
   const enqueue = (operation) => {
     pending = pending.then(operation, operation);
     return pending;
