@@ -1,8 +1,15 @@
+import json
+import re
+import threading
 import time
+from http.server import ThreadingHTTPServer
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 import pytest
 
-from pyreact.runtime import LiveApplication
+from pyreact.runtime import DEFAULT_MAX_EVENT_BODY_BYTES, LiveApplication
+from pyreact.runtime.session_management import make_handler
 
 
 def _application(tmp_path, **options):
@@ -13,9 +20,10 @@ def _application(tmp_path, **options):
     public.mkdir()
     entry = source / "index.py"
     entry.write_text(
-        "from pyreact import h\n"
+        "from pyreact import h, use_state\n"
         "def App(props):\n"
-        "    return h('p', None, props['path'])\n",
+        "    count, set_count = use_state(0)\n"
+        "    return h('button', {'onClick': lambda e: set_count(count + 1)}, f'Count: {count}')\n",
         encoding="utf-8",
     )
     return LiveApplication(entry, public, **options)
@@ -69,3 +77,73 @@ def test_session_limits_are_validated(tmp_path):
         _application(tmp_path / "ttl", session_ttl=0)
     with pytest.raises(ValueError, match="max_sessions"):
         _application(tmp_path / "capacity", max_sessions=0)
+
+
+def _start_server(application, *, max_event_body_bytes):
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", 0),
+        make_handler(
+            application,
+            "Security Test",
+            max_event_body_bytes=max_event_body_bytes,
+        ),
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread, f"http://127.0.0.1:{server.server_port}"
+
+
+def test_event_body_limit_is_positive(tmp_path):
+    application = _application(tmp_path)
+    with pytest.raises(ValueError, match="max_event_body_bytes"):
+        make_handler(application, max_event_body_bytes=0)
+    assert DEFAULT_MAX_EVENT_BODY_BYTES == 64 * 1024
+
+
+def test_oversized_event_is_rejected_before_session_creation(tmp_path):
+    application = _application(tmp_path)
+    server, thread, base = _start_server(application, max_event_body_bytes=64)
+    try:
+        body = json.dumps(
+            {"path": "0", "type": "click", "payload": {"value": "x" * 256}}
+        ).encode()
+        request = Request(
+            base + "/__pyreact/event",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        with pytest.raises(HTTPError) as error:
+            urlopen(request, timeout=3)
+        assert error.value.code == 413
+        payload = json.loads(error.value.read())
+        assert "64 bytes" in payload["error"]
+        assert application.sessions == {}
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_event_under_limit_preserves_protocol(tmp_path):
+    application = _application(tmp_path)
+    server, thread, base = _start_server(application, max_event_body_bytes=1024)
+    try:
+        with urlopen(base + "/", timeout=3) as response:
+            page = response.read().decode()
+            cookie = response.headers["Set-Cookie"].split(";", 1)[0]
+        path = re.search(r'data-pyreact-path="([^"]+)"', page).group(1)
+        body = json.dumps(
+            {"path": path, "type": "click", "payload": {"type": "click"}}
+        ).encode()
+        request = Request(
+            base + "/__pyreact/event",
+            data=body,
+            headers={"Content-Type": "application/json", "Cookie": cookie},
+        )
+        with urlopen(request, timeout=3) as response:
+            payload = json.loads(response.read())
+        assert "Count: 1" in payload["html"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
