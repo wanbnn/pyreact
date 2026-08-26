@@ -21,6 +21,39 @@ Session cookies are ``HttpOnly`` and ``SameSite=Lax``. Application state lives
 in server memory, so multi-process deployment requires sticky sessions or an
 application-level shared state strategy.
 
+Session Lifecycle and Memory Bounds
+-----------------------------------
+
+The public live runtime keeps browser state bounded by default. Inactive
+sessions expire after 30 minutes and at most 1,024 sessions are retained by one
+``LiveApplication`` process. When the capacity is reached, the least recently
+used session is discarded before a new browser session is created. A browser
+whose session has expired simply receives a fresh component tree on its next
+request.
+
+These limits can be tuned for application traffic and state size:
+
+.. code-block:: python
+
+   from pyreact import LiveApplication, serve
+
+   application = LiveApplication(
+       entry,
+       public_dir,
+       session_ttl=15 * 60,
+       max_sessions=500,
+   )
+
+   serve(
+       entry="src/index.py",
+       session_ttl=15 * 60,
+       max_sessions=500,
+   )
+
+The hard capacity makes per-process session retention predictable instead of
+allowing abandoned browser sessions to accumulate for the lifetime of the
+server.
+
 Development and Hot Reload
 --------------------------
 
@@ -61,6 +94,8 @@ Programmatic Server API
        port=8000,
        public_dir="public",
        title="My application",
+       session_ttl=30 * 60,
+       max_sessions=1024,
    )
 
 ``LiveApplication`` and ``LiveSession`` are exported for embedding the runtime
