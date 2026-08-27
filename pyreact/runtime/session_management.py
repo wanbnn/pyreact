@@ -101,13 +101,19 @@ def make_handler(
     title: str = "PyReact App",
     *,
     max_event_body_bytes: int = DEFAULT_MAX_EVENT_BODY_BYTES,
+    secure_session_cookie: bool = False,
 ):
-    """Create a runtime handler that bounds browser event request bodies.
+    """Create a runtime handler with bounded events and cookie transport policy.
 
     The lower-level live server historically trusted ``Content-Length`` and
     read that many bytes into memory. The public runtime rejects oversized or
     malformed lengths before delegating to the event parser, keeping memory
     consumed by each event request bounded independently of client input.
+
+    ``secure_session_cookie`` appends the standard ``Secure`` attribute to the
+    PyReact session cookie. It is opt-in because the built-in development
+    server itself speaks HTTP, while production deployments commonly terminate
+    TLS at a reverse proxy.
     """
     if max_event_body_bytes < 1:
         raise ValueError("max_event_body_bytes must be at least one")
@@ -115,6 +121,16 @@ def make_handler(
     base_handler = _base_make_handler(application, title)
 
     class BoundedEventHandler(base_handler):
+        def send_header(self, keyword: str, value: str) -> None:
+            if (
+                secure_session_cookie
+                and keyword.lower() == "set-cookie"
+                and value.startswith("pyreact_session=")
+                and "secure" not in {part.strip().lower() for part in value.split(";")}
+            ):
+                value += "; Secure"
+            super().send_header(keyword, value)
+
         def do_POST(self) -> None:
             if urlsplit(self.path).path == "/__pyreact/event":
                 raw_length = self.headers.get("Content-Length")
@@ -158,6 +174,7 @@ def serve(
     session_ttl: float = DEFAULT_SESSION_TTL,
     max_sessions: int = DEFAULT_MAX_SESSIONS,
     max_event_body_bytes: int = DEFAULT_MAX_EVENT_BODY_BYTES,
+    secure_session_cookie: bool = False,
 ) -> None:
     """Serve a live PyReact app with bounded sessions and event requests."""
     application = LiveApplication(
@@ -172,6 +189,7 @@ def serve(
             application,
             title,
             max_event_body_bytes=max_event_body_bytes,
+            secure_session_cookie=secure_session_cookie,
         ),
     )
     print(f"[OK] PyReact live server running at http://{host}:{port}", flush=True)
