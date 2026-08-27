@@ -206,6 +206,72 @@ def test_secure_session_cookie_can_be_enabled_for_https_deployments(tmp_path):
         thread.join(timeout=2)
 
 
+def test_public_assets_revalidate_with_etag_and_zero_body_304(tmp_path):
+    application = _application(tmp_path)
+    asset = application.public_dir / "app.css"
+    asset.write_text("body{color:#123}", encoding="utf-8")
+    server, thread, base = _start_server(application, max_event_body_bytes=1024)
+    try:
+        with urlopen(base + "/app.css", timeout=3) as response:
+            first_body = response.read()
+            etag = response.headers["ETag"]
+            cache_control = response.headers["Cache-Control"]
+
+        assert first_body == b"body{color:#123}"
+        assert etag.startswith('W/"')
+        assert cache_control == "public, max-age=0, must-revalidate"
+
+        request = Request(base + "/app.css", headers={"If-None-Match": etag})
+        with pytest.raises(HTTPError) as not_modified:
+            urlopen(request, timeout=3)
+        assert not_modified.value.code == 304
+        assert not_modified.value.read() == b""
+        assert not_modified.value.headers["ETag"] == etag
+        assert (
+            not_modified.value.headers["Cache-Control"]
+            == "public, max-age=0, must-revalidate"
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_changed_public_asset_invalidates_previous_etag(tmp_path):
+    application = _application(tmp_path)
+    asset = application.public_dir / "bundle.js"
+    asset.write_text("console.log('v1')", encoding="utf-8")
+    server, thread, base = _start_server(application, max_event_body_bytes=1024)
+    try:
+        with urlopen(base + "/bundle.js", timeout=3) as response:
+            old_etag = response.headers["ETag"]
+
+        asset.write_text("console.log('version-two')", encoding="utf-8")
+        request = Request(base + "/bundle.js", headers={"If-None-Match": old_etag})
+        with urlopen(request, timeout=3) as response:
+            new_body = response.read()
+            new_etag = response.headers["ETag"]
+
+        assert new_body == b"console.log('version-two')"
+        assert new_etag != old_etag
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_dynamic_html_remains_no_store(tmp_path):
+    application = _application(tmp_path)
+    server, thread, base = _start_server(application, max_event_body_bytes=1024)
+    try:
+        with urlopen(base + "/", timeout=3) as response:
+            assert response.headers["Cache-Control"] == "no-store"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def test_event_under_limit_preserves_protocol(tmp_path):
     application = _application(tmp_path)
     server, thread, base = _start_server(application, max_event_body_bytes=1024)
