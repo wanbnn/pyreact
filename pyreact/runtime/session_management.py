@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer
+import mimetypes
 from pathlib import Path
 import secrets
 import threading
@@ -18,6 +19,7 @@ from .server import LiveSession, make_handler as _base_make_handler
 DEFAULT_SESSION_TTL = 30 * 60.0
 DEFAULT_MAX_SESSIONS = 1024
 DEFAULT_MAX_EVENT_BODY_BYTES = 64 * 1024
+_STATIC_CACHE_CONTROL = "public, max-age=0, must-revalidate"
 
 
 class LiveApplication(_BaseLiveApplication):
@@ -96,6 +98,19 @@ class LiveApplication(_BaseLiveApplication):
             return session_id, self.sessions[session_id]
 
 
+def _static_etag(path: Path) -> str:
+    """Return a cheap validator that changes when a static file changes."""
+    stat = path.stat()
+    return f'W/"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+
+
+def _etag_matches(header: str, etag: str) -> bool:
+    """Return whether an If-None-Match value accepts the current ETag."""
+    if not header:
+        return False
+    return any(value.strip() in {"*", etag} for value in header.split(","))
+
+
 def make_handler(
     application: LiveApplication,
     title: str = "PyReact App",
@@ -114,6 +129,11 @@ def make_handler(
     PyReact session cookie. It is opt-in because the built-in development
     server itself speaks HTTP, while production deployments commonly terminate
     TLS at a reverse proxy.
+
+    Files under ``public/`` use conditional HTTP revalidation. Their ETag is
+    derived from file metadata, so unchanged assets return ``304 Not Modified``
+    without being read into memory or retransmitted. ``must-revalidate`` keeps
+    development and production deployments fresh when a public asset changes.
     """
     if max_event_body_bytes < 1:
         raise ValueError("max_event_body_bytes must be at least one")
@@ -130,6 +150,45 @@ def make_handler(
             ):
                 value += "; Secure"
             super().send_header(keyword, value)
+
+        def _public_file(self, request_path: str) -> Optional[Path]:
+            candidate = (application.public_dir / request_path.lstrip("/")).resolve()
+            try:
+                candidate.relative_to(application.public_dir)
+            except ValueError:
+                return None
+            if candidate.is_file() and candidate.name != "index.html":
+                return candidate
+            return None
+
+        def _send_static(self, path: Path) -> None:
+            etag = _static_etag(path)
+            if _etag_matches(self.headers.get("If-None-Match", ""), etag):
+                self.send_response(HTTPStatus.NOT_MODIFIED)
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", _STATIC_CACHE_CONTROL)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+
+            body = path.read_bytes()
+            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", _STATIC_CACHE_CONTROL)
+            self.send_header("ETag", etag)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:
+            parsed = urlsplit(self.path)
+            if not parsed.path.startswith("/__pyreact/"):
+                static_file = self._public_file(parsed.path)
+                if static_file is not None:
+                    self._send_static(static_file)
+                    return
+            super().do_GET()
 
         def do_POST(self) -> None:
             if urlsplit(self.path).path == "/__pyreact/event":
