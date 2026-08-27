@@ -111,6 +111,19 @@ def _etag_matches(header: str, etag: str) -> bool:
     return any(value.strip() in {"*", etag} for value in header.split(","))
 
 
+def _origin_authority(origin: str) -> Optional[str]:
+    """Return a canonical network authority for an HTTP(S) Origin value."""
+    try:
+        parsed = urlsplit(origin)
+    except ValueError:
+        return None
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    return parsed.netloc.lower()
+
+
 def make_handler(
     application: LiveApplication,
     title: str = "PyReact App",
@@ -118,12 +131,20 @@ def make_handler(
     max_event_body_bytes: int = DEFAULT_MAX_EVENT_BODY_BYTES,
     secure_session_cookie: bool = False,
 ):
-    """Create a runtime handler with bounded events and cookie transport policy.
+    """Create a runtime handler with bounded events and browser-origin checks.
 
     The lower-level live server historically trusted ``Content-Length`` and
     read that many bytes into memory. The public runtime rejects oversized or
     malformed lengths before delegating to the event parser, keeping memory
     consumed by each event request bounded independently of client input.
+
+    Browser event dispatch is same-origin. When modern Fetch Metadata headers
+    are present, ``Sec-Fetch-Site`` must be ``same-origin``. When ``Origin`` is
+    present, its authority must match the request ``Host``. These checks happen
+    before a session is created or an event body is read, so a sibling subdomain
+    cannot use a SameSite cookie to dispatch application events through a victim
+    browser. Non-browser clients that omit both optional headers remain
+    compatible with the existing protocol.
 
     ``secure_session_cookie`` appends the standard ``Secure`` attribute to the
     PyReact session cookie. It is opt-in because the built-in development
@@ -181,6 +202,18 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
 
+        def _event_origin_is_allowed(self) -> bool:
+            fetch_site = self.headers.get("Sec-Fetch-Site", "").strip().lower()
+            if fetch_site and fetch_site != "same-origin":
+                return False
+
+            origin = self.headers.get("Origin")
+            if origin is None:
+                return True
+            authority = _origin_authority(origin.strip())
+            host = self.headers.get("Host", "").strip().lower()
+            return authority is not None and bool(host) and authority == host
+
         def do_GET(self) -> None:
             parsed = urlsplit(self.path)
             if not parsed.path.startswith("/__pyreact/"):
@@ -192,6 +225,13 @@ def make_handler(
 
         def do_POST(self) -> None:
             if urlsplit(self.path).path == "/__pyreact/event":
+                if not self._event_origin_is_allowed():
+                    self._json(
+                        {"error": "Cross-origin event dispatch is not allowed"},
+                        HTTPStatus.FORBIDDEN,
+                    )
+                    return
+
                 raw_length = self.headers.get("Content-Length")
                 try:
                     length = int(raw_length or "0")
