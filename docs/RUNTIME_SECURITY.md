@@ -8,7 +8,17 @@ The public runtime treats the `pyreact_session` cookie only as a reference to an
 
 This prevents a client from choosing a future server-side session identifier (session fixation) while keeping stale-cookie recovery transparent. Existing valid sessions keep their identifier and refresh their idle deadline normally.
 
-The runtime cookie remains `HttpOnly` and `SameSite=Lax`. Deployments exposed over HTTPS should also terminate or redirect plaintext HTTP at the edge so session cookies are never transported over an insecure route.
+The runtime cookie is always `HttpOnly` and `SameSite=Lax`. For HTTPS deployments, enable the `Secure` attribute explicitly:
+
+```python
+from pyreact.runtime import serve
+
+serve(secure_session_cookie=True)
+```
+
+The built-in server itself speaks plain HTTP, so `secure_session_cookie` defaults to `False` to keep local development working. In production, it should normally be enabled when TLS is terminated by a reverse proxy or load balancer. Browsers then refuse to send the session cookie over plaintext HTTP, reducing the risk of session disclosure if an insecure route is accidentally exposed.
+
+Do not enable this option for a plain-HTTP deployment: browsers correctly withhold `Secure` cookies on insecure connections, which would create a new session on each request.
 
 ## Event request body limit
 
@@ -28,4 +38,4 @@ The limit applies to the public runtime path exposed by `pyreact.runtime.serve()
 
 ## Session limits
 
-The runtime also bounds retained browser state with `session_ttl` and `max_sessions`. These controls are complementary: session limits bound long-lived server-side state, server-owned identifiers prevent fixation of that state, and `max_event_body_bytes` bounds transient memory accepted from each event request.
+The runtime also bounds retained browser state with `session_ttl` and `max_sessions`. These controls are complementary: session limits bound long-lived server-side state, server-owned identifiers prevent fixation of that state, `secure_session_cookie` can protect cookie transport in HTTPS deployments, and `max_event_body_bytes` bounds transient memory accepted from each event request.
