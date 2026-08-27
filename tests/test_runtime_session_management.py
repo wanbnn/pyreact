@@ -97,13 +97,19 @@ def test_session_limits_are_validated(tmp_path):
         _application(tmp_path / "capacity", max_sessions=0)
 
 
-def _start_server(application, *, max_event_body_bytes):
+def _start_server(
+    application,
+    *,
+    max_event_body_bytes,
+    secure_session_cookie=False,
+):
     server = ThreadingHTTPServer(
         ("127.0.0.1", 0),
         make_handler(
             application,
             "Security Test",
             max_event_body_bytes=max_event_body_bytes,
+            secure_session_cookie=secure_session_cookie,
         ),
     )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -157,6 +163,43 @@ def test_forged_session_cookie_is_rotated_by_http_runtime(tmp_path):
         assert assigned_id != "attacker-chosen-session"
         assert "attacker-chosen-session" not in application.sessions
         assert assigned_id in application.sessions
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_session_cookie_is_http_only_lax_and_not_secure_by_default(tmp_path):
+    application = _application(tmp_path)
+    server, thread, base = _start_server(application, max_event_body_bytes=1024)
+    try:
+        with urlopen(base + "/", timeout=3) as response:
+            cookie = response.headers["Set-Cookie"]
+
+        assert "HttpOnly" in cookie
+        assert "SameSite=Lax" in cookie
+        assert "Secure" not in cookie
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_secure_session_cookie_can_be_enabled_for_https_deployments(tmp_path):
+    application = _application(tmp_path)
+    server, thread, base = _start_server(
+        application,
+        max_event_body_bytes=1024,
+        secure_session_cookie=True,
+    )
+    try:
+        with urlopen(base + "/", timeout=3) as response:
+            cookie = response.headers["Set-Cookie"]
+
+        assert "HttpOnly" in cookie
+        assert "SameSite=Lax" in cookie
+        assert "Secure" in cookie
+        assert cookie.count("Secure") == 1
     finally:
         server.shutdown()
         server.server_close()
