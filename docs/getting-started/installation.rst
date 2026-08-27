@@ -26,12 +26,8 @@ Install the latest development version from GitHub:
 Requirements
 ------------
 
-PyReact Framework automatically installs the following dependencies:
-
-- ``watchdog>=3.0.0`` - File system monitoring for hot reload
-- ``jinja2>=3.1.0`` - Template rendering
-- ``pyyaml>=6.0`` - YAML configuration parsing
-- ``click>=8.1.0`` - CLI framework (alternative to argparse)
+PyReact Framework automatically installs the dependencies declared by the
+published package for your Python version.
 
 Verification
 ------------
@@ -46,7 +42,7 @@ You should see output similar to:
 
 .. code-block:: text
 
-   PyReact Framework v1.1.0
+   PyReact Framework v1.2.0
 
 Next Steps
 ----------
