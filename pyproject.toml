@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyreact-framework"
-version = "1.1.0"
+version = "1.2.0"
 description = "React-inspired declarative web framework built natively for Python"
 readme = "README.md"
 license = "MIT"
