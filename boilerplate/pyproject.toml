@@ -3,7 +3,7 @@ name = "orbit-pyreact-boilerplate"
 version = "0.1.0"
 description = "Aplicação de gestão de tarefas construída com PyReact"
 requires-python = ">=3.10"
-dependencies = ["pyreact-framework>=1.1.0"]
+dependencies = ["pyreact-framework>=1.2.0"]
 
 [tool.pyreact]
 entry = "src/index.py"
