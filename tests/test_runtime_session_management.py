@@ -32,44 +32,62 @@ def _application(tmp_path, **options):
 def test_live_sessions_have_a_hard_capacity_and_evict_lru(tmp_path):
     application = _application(tmp_path, max_sessions=2, session_ttl=3600)
 
-    _, first = application.session("first")
-    application.session("second")
+    first_id, first = application.session()
+    second_id, _ = application.session()
     # Refresh the first session so the second becomes least recently used.
-    refreshed_id, refreshed = application.session("first")
-    assert refreshed_id == "first"
+    refreshed_id, refreshed = application.session(first_id)
+    assert refreshed_id == first_id
     assert refreshed is first
 
-    application.session("third")
+    third_id, _ = application.session()
 
     assert len(application.sessions) == 2
-    assert set(application.sessions) == {"first", "third"}
-    assert "second" not in application._session_last_seen
+    assert set(application.sessions) == {first_id, third_id}
+    assert second_id not in application._session_last_seen
 
 
-def test_idle_sessions_expire_before_new_sessions_are_created(tmp_path):
+def test_idle_sessions_expire_and_rotate_their_identifier(tmp_path):
     application = _application(tmp_path, max_sessions=10, session_ttl=30)
-    _, expired = application.session("expired")
-    application.session("active")
-    application._session_last_seen["expired"] = time.monotonic() - 31
+    expired_id, expired = application.session()
+    active_id, _ = application.session()
+    application._session_last_seen[expired_id] = time.monotonic() - 31
 
-    application.session("new")
+    new_id, _ = application.session()
 
-    assert "expired" not in application.sessions
-    assert "expired" not in application._session_last_seen
-    assert set(application.sessions) == {"active", "new"}
-    _, replacement = application.session("expired")
+    assert expired_id not in application.sessions
+    assert expired_id not in application._session_last_seen
+    assert set(application.sessions) == {active_id, new_id}
+    replacement_id, replacement = application.session(expired_id)
+    assert replacement_id != expired_id
     assert replacement is not expired
+    assert expired_id not in application.sessions
 
 
 def test_session_access_refreshes_idle_deadline(tmp_path):
     application = _application(tmp_path, session_ttl=30)
-    _, session = application.session("browser")
-    application._session_last_seen["browser"] = time.monotonic() - 29
+    browser_id, session = application.session()
+    application._session_last_seen[browser_id] = time.monotonic() - 29
 
-    _, refreshed = application.session("browser")
+    refreshed_id, refreshed = application.session(browser_id)
 
+    assert refreshed_id == browser_id
     assert refreshed is session
-    assert time.monotonic() - application._session_last_seen["browser"] < 1
+    assert time.monotonic() - application._session_last_seen[browser_id] < 1
+
+
+def test_unknown_client_session_id_is_never_adopted(tmp_path, monkeypatch):
+    application = _application(tmp_path)
+    generated = iter(["server-generated-session"])
+    monkeypatch.setattr(
+        "pyreact.runtime.session_management.secrets.token_urlsafe",
+        lambda _: next(generated),
+    )
+
+    session_id, _ = application.session("attacker-chosen-session")
+
+    assert session_id == "server-generated-session"
+    assert "attacker-chosen-session" not in application.sessions
+    assert set(application.sessions) == {"server-generated-session"}
 
 
 def test_session_limits_are_validated(tmp_path):
@@ -118,6 +136,27 @@ def test_oversized_event_is_rejected_before_session_creation(tmp_path):
         payload = json.loads(error.value.read())
         assert "64 bytes" in payload["error"]
         assert application.sessions == {}
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_forged_session_cookie_is_rotated_by_http_runtime(tmp_path):
+    application = _application(tmp_path)
+    server, thread, base = _start_server(application, max_event_body_bytes=1024)
+    try:
+        request = Request(
+            base + "/",
+            headers={"Cookie": "pyreact_session=attacker-chosen-session"},
+        )
+        with urlopen(request, timeout=3) as response:
+            cookie = response.headers["Set-Cookie"].split(";", 1)[0]
+        assigned_id = cookie.split("=", 1)[1]
+
+        assert assigned_id != "attacker-chosen-session"
+        assert "attacker-chosen-session" not in application.sessions
+        assert assigned_id in application.sessions
     finally:
         server.shutdown()
         server.server_close()

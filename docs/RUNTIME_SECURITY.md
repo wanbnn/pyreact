@@ -1,6 +1,14 @@
 # Runtime security limits
 
-PyReact's server-driven runtime keeps component state in Python and receives browser events over `POST /__pyreact/event`. Because these requests are processed by a threaded HTTP server, the public runtime applies explicit resource limits before parsing event payloads.
+PyReact's server-driven runtime keeps component state in Python and receives browser events over `POST /__pyreact/event`. Because these requests are processed by a threaded HTTP server, the public runtime applies explicit resource and session-integrity controls before dispatching browser events.
+
+## Session identifier ownership
+
+The public runtime treats the `pyreact_session` cookie only as a reference to an already-existing server session. A cookie value that is unknown, expired, or evicted is never adopted as the identifier for a new session. Instead, PyReact generates a fresh cryptographically random token and returns it in `Set-Cookie`.
+
+This prevents a client from choosing a future server-side session identifier (session fixation) while keeping stale-cookie recovery transparent. Existing valid sessions keep their identifier and refresh their idle deadline normally.
+
+The runtime cookie remains `HttpOnly` and `SameSite=Lax`. Deployments exposed over HTTPS should also terminate or redirect plaintext HTTP at the edge so session cookies are never transported over an insecure route.
 
 ## Event request body limit
 
@@ -20,4 +28,4 @@ The limit applies to the public runtime path exposed by `pyreact.runtime.serve()
 
 ## Session limits
 
-The runtime also bounds retained browser state with `session_ttl` and `max_sessions`. These controls are complementary: session limits bound long-lived server-side state, while `max_event_body_bytes` bounds transient memory accepted from each event request.
+The runtime also bounds retained browser state with `session_ttl` and `max_sessions`. These controls are complementary: session limits bound long-lived server-side state, server-owned identifiers prevent fixation of that state, and `max_event_body_bytes` bounds transient memory accepted from each event request.
