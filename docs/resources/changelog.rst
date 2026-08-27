@@ -5,6 +5,31 @@ Changelog
 
 All notable changes to PyReact Framework are documented here.
 
+Version 1.2.0 (2026-08-27)
+--------------------------
+
+Added
+~~~~~
+
+- Incremental browser DOM patching that preserves stable nodes across state updates
+- Bounded live-session retention with configurable idle expiration and LRU capacity
+- A configurable maximum event-request body size, with oversized requests rejected before reading the body
+- Manual and tag-driven release validation that verifies package/tag version consistency before publication
+
+Fixed
+~~~~~
+
+- Explicit ``children`` passed in component props are preserved by ``h()`` and ``clone_element()``
+- Positional children continue to take precedence when both positional and explicit prop children are supplied
+- Downstream component libraries such as UIKitPR can render ``h(Component, {"children": ...})`` without losing their content
+
+Reliability and performance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Long-running applications no longer retain browser sessions without bounds
+- Concurrent clients can no longer request arbitrarily large event payload allocations through ``Content-Length``
+- Browser state updates avoid replacing unchanged DOM nodes wholesale
+
 Version 1.1.0 (2026-08-23)
 --------------------------
 
@@ -144,32 +169,16 @@ Documentation
 Roadmap
 -------
 
-Version 1.1.0 (Planned)
-~~~~~~~~~~~~~~~~~~~~~~~
+Future releases
+~~~~~~~~~~~~~~~
 
-- TypeScript support
-- More hooks (useTransition, useDeferredValue)
-- Improved SSR performance
-- Better error messages
-- More examples
-
-Version 1.2.0 (Planned)
-~~~~~~~~~~~~~~~~~~~~~~~
-
-- Animation library
+- Animation primitives
 - Form validation
 - Internationalization (i18n)
-- State management library
-- Component library
-
-Version 2.0.0 (Future)
-~~~~~~~~~~~~~~~~~~~~~~
-
-- Concurrent rendering
+- State management helpers
 - Suspense for data fetching
 - Server components
-- Streaming SSR
-- New architecture
+- Concurrent rendering
 
 Contributing
 ------------
@@ -188,6 +197,8 @@ PyReact follows `Semantic Versioning <https://semver.org/>`_:
 Previous Versions
 -----------------
 
+- **1.1.0** - Server-driven runtime and advanced rendering (2026-08-23)
+- **1.0.5** - Runtime reliability and release automation (2026-07-24)
 - **1.0.0** - Initial stable release (2026-03-28)
 
 Next Steps
