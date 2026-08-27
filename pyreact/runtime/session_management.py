@@ -182,13 +182,8 @@ def make_handler(
             self.wfile.write(body)
 
         def do_GET(self) -> None:
-            application.reload_if_changed()
             parsed = urlsplit(self.path)
-            if parsed.path not in {
-                "/__pyreact/runtime.js",
-                "/__pyreact/version",
-                "/__pyreact/render",
-            }:
+            if not parsed.path.startswith("/__pyreact/"):
                 static_file = self._public_file(parsed.path)
                 if static_file is not None:
                     self._send_static(static_file)
