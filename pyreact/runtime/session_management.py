@@ -64,6 +64,12 @@ class LiveApplication(_BaseLiveApplication):
         self.sessions.pop(oldest, None)
         self._session_last_seen.pop(oldest, None)
 
+    def _new_session_id(self) -> str:
+        while True:
+            session_id = secrets.token_urlsafe(24)
+            if session_id not in self.sessions:
+                return session_id
+
     def reload_if_changed(self) -> bool:
         with self._sessions_lock:
             changed = super().reload_if_changed()
@@ -80,8 +86,11 @@ class LiveApplication(_BaseLiveApplication):
                 return session_id, self.sessions[session_id]
 
             self._evict_lru_if_full()
-            session_id = session_id or secrets.token_urlsafe(24)
-            # A caller-provided id may have been evicted as stale or may be new.
+            # Never let an unknown or stale client cookie choose the identifier
+            # of a server-side session. Rotating it to a fresh random token
+            # prevents session fixation while transparently recovering expired
+            # or invalid browser sessions.
+            session_id = self._new_session_id()
             self.sessions[session_id] = LiveSession(self.app)
             self._session_last_seen[session_id] = now
             return session_id, self.sessions[session_id]
