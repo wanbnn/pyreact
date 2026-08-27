@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'PyReact Framework'
 copyright = '2026, wanbnn'
 author = 'wanbnn'
-release = '1.1.0'
+release = '1.2.0'
 language = 'en'
 
 # -- General configuration ---------------------------------------------------
@@ -46,7 +46,6 @@ html_theme_options = {
     'prev_next_buttons_location': 'bottom',
     'style_external_links': False,
     'vcs_pageview_mode': '',
-    'style_nav_header_background': 'white',
     # Toc options
     'collapse_navigation': True,
     'sticky_navigation': True,
